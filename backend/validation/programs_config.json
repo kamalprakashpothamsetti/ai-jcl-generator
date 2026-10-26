@@ -1,0 +1,24 @@
+{
+  "known_utilities": [
+    "SORT",
+    "ICEMAN",
+    "IEFBR14",
+    "IEBGENER",
+    "IDCAMS",
+    "IEBCOPY",
+    "IEBUPDTE",
+    "IKJEFT01",
+    "IKJEFT1A",
+    "IKJEFT1B"
+  ],
+  "aliases": {
+    "DFSORT": "SORT",
+    "SYNCSORT": "SORT",
+    "ICETOOL": "SORT"
+  },
+  "user_programs": [],
+  "site_rules": {
+    "fuzzy_threshold": 0.7,
+    "max_suggestions": 1
+  }
+}

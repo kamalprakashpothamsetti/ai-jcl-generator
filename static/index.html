@@ -1,0 +1,3302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JCL Studio AI — IBM Mainframe JCL Generator & Validator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+/* CSS Variables & Theme Definitions */
+:root {
+  /* Default Dark Theme */
+  --bg-main: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-subtle: #1a2234;
+  --bg-input: #0d131f;
+  --border-subtle: #1f293d;
+  --border-focus: #3b82f6;
+  --border-accent: #2563eb;
+  
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --accent-blue: #3b82f6;
+  --accent-indigo: #6366f1;
+
+  --ruler-bg: #090d15;
+  --line-gutter-bg: #0c121d;
+  --line-gutter-color: #475569;
+  --guide-col-color: rgba(239, 68, 68, 0.4);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* Modal Overlay & Dialog Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+body.light-theme {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f1f5f9;
+  --bg-input: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-focus: #2563eb;
+  --border-accent: #3b82f6;
+  
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+  
+  --accent-cyan: #0284c7;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --accent-blue: #2563eb;
+  --accent-indigo: #4f46e5;
+
+  --ruler-bg: #edf2f7;
+  --line-gutter-bg: #f8fafc;
+  --line-gutter-color: #94a3b8;
+  --guide-col-color: rgba(225, 29, 72, 0.3);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-main);
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.5;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.studio-container {
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: 18px 22px 40px;
+}
+
+/* Header */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 16px;
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #06b6d4 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+  flex-shrink: 0;
+}
+
+.brand-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: #ffffff;
+}
+
+h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-version {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+}
+
+.badge-disclaimer {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-amber);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge-model {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent-blue);
+  border-color: rgba(59, 130, 246, 0.3);
+  font-family: var(--font-mono);
+}
+
+.theme-toggle-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--bg-card-subtle);
+  border-color: var(--border-focus);
+}
+
+/* Mobile Tabs Bar */
+.mobile-nav {
+  display: none;
+  background: var(--bg-card);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 16px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.mobile-nav-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.mobile-nav-btn.active {
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  border: 1px solid var(--border-accent);
+}
+
+/* 3-Column Desktop Studio Layout */
+.studio-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr 370px;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1400px) {
+  .studio-layout {
+    grid-template-columns: 350px 1fr 340px;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .mobile-nav {
+    display: grid;
+  }
+  .studio-layout {
+    grid-template-columns: 1fr;
+  }
+  .studio-column {
+    display: none;
+  }
+  .studio-column.mobile-active {
+    display: block;
+  }
+}
+
+/* Studio Column / Cards */
+.studio-column {
+  min-width: 0;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  margin-bottom: 16px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.card:last-child {
+  margin-bottom: 0;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Generator Tabs Switcher */
+.mode-bar {
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.tabs-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  background: var(--bg-card-subtle);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  width: 100%;
+}
+
+.tab-btn {
+  min-width: 0;
+  min-height: 40px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
+  transition: all 0.15s ease;
+}
+
+.tab-btn span {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+.tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.light-theme .tab-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.tab-btn.active {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-focus);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Form Controls */
+label {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 10px 0 4px;
+}
+
+label:first-child { margin-top: 0; }
+
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%;
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .form-grid-2, .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-input);
+  border-color: var(--border-focus);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--accent-rose);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: var(--accent-rose);
+  color: #ffffff;
+}
+
+/* Quick Prompt Chips */
+.presets-group {
+  margin: 10px 0;
+}
+
+.presets-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.presets-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-chip {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 4px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  border-color: var(--border-focus);
+  color: var(--text-main);
+  background: var(--bg-input);
+}
+
+.utility-info {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+/* Status / Messages */
+.message {
+  font-size: 0.78rem;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card-subtle);
+  color: var(--text-muted);
+  border-left: 3px solid var(--border-focus);
+}
+
+.message.error {
+  background: rgba(244, 63, 94, 0.1);
+  color: #fecdd3;
+  border-left-color: var(--accent-rose);
+}
+
+body.light-theme .message.error {
+  color: #be123c;
+}
+
+/* Manual Builder Styles */
+.builder-section {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.builder-section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.step-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-top: 8px;
+}
+
+.dd-row {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-top: 6px;
+}
+
+.dd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.dd-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon-sm {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.btn-icon-sm:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+/* Shared Editor Column */
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-ruler {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  background: var(--ruler-bg);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  display: flex;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.editor-container {
+  display: flex;
+  position: relative;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  overflow: hidden;
+  height: 520px;
+}
+
+.line-numbers {
+  width: 44px;
+  padding: 10px 6px 10px 0;
+  text-align: right;
+  background: var(--line-gutter-bg);
+  color: var(--line-gutter-color);
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 20px;
+  user-select: none;
+  overflow: hidden;
+  border-right: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.line-numbers .line-num {
+  height: 20px;
+  display: block;
+  cursor: pointer;
+}
+
+.line-numbers .line-num:hover {
+  color: var(--accent-cyan);
+}
+
+#output {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 20px;
+  resize: none;
+  overflow: auto;
+  white-space: pre;
+  tab-size: 2;
+  box-shadow: none;
+}
+
+#output:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 80-Column Guide Marker */
+.col-80-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(44px + 12px + 80ch);
+  width: 1px;
+  background: var(--guide-col-color);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.col80-ok {
+  color: var(--accent-emerald);
+}
+
+.col80-warn {
+  color: var(--accent-rose);
+  font-weight: 600;
+}
+
+.badge-unsaved {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-amber);
+  border-color: rgba(245, 158, 11, 0.3);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+}
+
+.badge-saved {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-emerald);
+  border-color: rgba(16, 185, 129, 0.3);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+}
+
+/* Validation Inspector Styles */
+.inspector-card h2 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.inspector-list {
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.inspector-list li {
+  padding: 7px 9px;
+  margin-bottom: 5px;
+  background: var(--bg-card-subtle);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #3b82f6;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.inspector-list li.warning {
+  border-left-color: var(--accent-amber);
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.08);
+}
+body.light-theme .inspector-list li.warning {
+  color: #92400e;
+}
+
+.inspector-list li.error {
+  border-left-color: var(--accent-rose);
+  color: #fecdd3;
+  background: rgba(244, 63, 94, 0.08);
+}
+body.light-theme .inspector-list li.error {
+  color: #9f1239;
+}
+
+.inspector-list li.info {
+  border-left-color: var(--accent-cyan);
+  color: #a5f3fc;
+  background: rgba(6, 182, 212, 0.08);
+}
+body.light-theme .inspector-list li.info {
+  color: #0369a1;
+}
+
+.inspector-list.stale {
+  opacity: 0.65;
+}
+
+.line-jump-btn {
+  background: var(--bg-card);
+  color: #38bdf8;
+  border: 1px solid #0284c7;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 6px;
+  transition: all 0.15s ease;
+}
+.line-jump-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.diag-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+
+.diag-rule {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.suggested-fix {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.08);
+  border-left: 2px solid #22c55e;
+  padding: 3px 6px;
+  border-radius: 0 4px 4px 0;
+}
+body.light-theme .suggested-fix {
+  color: #15803d;
+}
+
+.val-filter-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.val-filter-btn.active {
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+/* Diff Viewer & Proposal Card Styles */
+.proposal-card {
+  border: 1px solid var(--accent-cyan) !important;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.15);
+}
+
+.diff-container {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
+.diff-line {
+  display: flex;
+  align-items: stretch;
+  padding: 0 6px;
+  white-space: pre;
+}
+
+.diff-line.added {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+body.light-theme .diff-line.added {
+  background: rgba(5, 150, 105, 0.12);
+  color: #065f46;
+}
+
+.diff-line.removed {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f87171;
+}
+body.light-theme .diff-line.removed {
+  background: rgba(225, 29, 72, 0.12);
+  color: #9f1239;
+}
+
+.diff-line.modified {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.diff-line.unchanged {
+  color: var(--text-dim);
+}
+
+.diff-line-num {
+  width: 32px;
+  text-align: right;
+  color: var(--text-dim);
+  user-select: none;
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+}
+
+.diff-sign {
+  width: 14px;
+  user-select: none;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.diff-content {
+  flex: 1;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #1e293b;
+  color: #ffffff;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  font-size: 0.82rem;
+  display: none;
+  z-index: 1000;
+}
+
+footer {
+  margin-top: 36px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<div class="studio-container">
+  <!-- Header -->
+  <header>
+    <div class="brand-wrapper">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 10h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm2-7v2h2V5H6zm0 10v2h2v-2H6zm6-10v2h6V5h-6zm0 10v2h6v-2h-6z"/>
+        </svg>
+      </div>
+      <div>
+        <h1>JCL Studio AI <span class="tag-version">z/OS v2.5</span></h1>
+        <p class="brand-subtitle">IBM Mainframe JCL Engineering Studio • Hybrid AI & Visual Builder</p>
+      </div>
+    </div>
+    <div class="header-controls">
+      <span class="badge badge-disclaimer">⚠️ Illustrative Only • Not Verified on z/OS</span>
+      <span id="activeModelBadge" class="badge badge-model">⚡ OpenAI (gpt-5.4-mini)</span>
+      <button id="themeToggleBtn" class="theme-toggle-btn" type="button" title="Toggle Dark/Light Theme">
+        <span id="themeIcon">☀️</span> <span id="themeLabel">Light</span>
+      </button>
+      <button id="settingsBtn" class="theme-toggle-btn" type="button" title="Configure Backend API URL & Studio Access Key" onclick="openSettingsModal()">
+        <span>⚙️</span> <span>Settings</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile View Navigation Tabs (< 1100px) -->
+  <div class="mobile-nav">
+    <button id="mobileTabGen" class="mobile-nav-btn active" type="button" onclick="setMobileView('generator')">🤖 Generator</button>
+    <button id="mobileTabEditor" class="mobile-nav-btn" type="button" onclick="setMobileView('editor')">📄 Editor</button>
+    <button id="mobileTabVal" class="mobile-nav-btn" type="button" onclick="setMobileView('validation')">🛡️ Validation</button>
+  </div>
+
+  <!-- 3-Column Desktop Grid -->
+  <div class="studio-layout">
+    
+    <!-- ============================================================== -->
+    <!-- COLUMN 1: GENERATOR (AI PROMPT OR MANUAL BUILDER)               -->
+    <!-- ============================================================== -->
+    <div id="columnGenerator" class="studio-column mobile-active">
+      
+      <!-- Generator Mode Selector Tabs -->
+      <div class="mode-bar">
+        <div class="tabs-container">
+          <button id="tabAiMode" class="tab-btn active" type="button">
+            <span>✨</span> AI Generator
+          </button>
+          <button id="tabManualMode" class="tab-btn" type="button">
+            <span>🛠️</span> Manual Builder
+          </button>
+          <button id="tabEditMode" class="tab-btn" type="button">
+            <span>✏️</span> AI Edit
+          </button>
+          <button id="tabExplainerMode" class="tab-btn" type="button">
+            <span>🔍</span> Error Explainer
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Prompt Configuration Panel -->
+      <section id="aiSection" class="card">
+        <div class="card-title-row">
+          <h2 class="card-title"><span>🤖</span> Natural Language Prompt</h2>
+        </div>
+
+        <div class="form-grid-2">
+          <div>
+            <label for="providerSelect">LLM Provider</label>
+            <select id="providerSelect">
+              <option value="openai" selected>OpenAI (gpt-5.4-mini)</option>
+              <option value="gemini">Google Gemini (Optional)</option>
+            </select>
+          </div>
+          <div>
+            <label for="utility">Target Utility</label>
+            <select id="utility">
+              <option value="AUTO">AUTO (Let AI Choose)</option>
+              <option value="IEFBR14">IEFBR14 (Allocation & Deletion)</option>
+              <option value="IEBGENER">IEBGENER (Sequential Copy)</option>
+              <option value="DFSORT">DFSORT (High-Speed Sort/Filter)</option>
+              <option value="IDCAMS">IDCAMS (VSAM Services & Repro)</option>
+            </select>
+          </div>
+        </div>
+        <div id="utilityDesc" class="utility-info">
+          Select AUTO or an explicit utility to tailor the model system prompt and DD rules.
+        </div>
+
+        <!-- Quick Start Prompt Chips -->
+        <div class="presets-group">
+          <div class="presets-label">Quick-Start Mainframe Examples</div>
+          <div class="presets-pills">
+            <button type="button" class="preset-chip" data-util="IEFBR14" data-prompt="Allocate a new fixed-block sequential dataset named USER.SAMPLE.DATA on volume SYSDA with primary space of 5 cylinders, secondary 1 cylinder, record length 80, and release unused space.">IEFBR14: Allocate Dataset</button>
+            <button type="button" class="preset-chip" data-util="IEBGENER" data-prompt="Copy sequential dataset USER.SOURCE.DATA to a new backup dataset USER.BACKUP.DATA with FB 80 record format and 10 cylinders allocation.">IEBGENER: Copy Dataset</button>
+            <button type="button" class="preset-chip" data-util="DFSORT" data-prompt="Create JCL to sort input dataset USER.INPUT by the first 10 character bytes in ascending order and write to USER.OUTPUT. Assume FB records of length 80.">DFSORT: Sort Ascending</button>
+            <button type="button" class="preset-chip" data-util="IDCAMS" data-prompt="Define a new VSAM KSDS cluster named USER.KSDS.DATA with keys of length 10 at offset 0, record size 80, allocation of 5 cylinders, and shareoptions (2 3).">IDCAMS: Define KSDS</button>
+          </div>
+        </div>
+
+        <label for="prompt">Requirement Description</label>
+        <textarea id="prompt" placeholder="Specify dataset names, record formats (FB/VB), sort fields, volume requirements, or desired utility...">Create JCL to sort input dataset USER.INPUT by the first 10 character bytes in ascending order and write to USER.OUTPUT. Assume FB records of length 80.</textarea>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+          <button id="generate" class="btn-primary" type="button">
+            <span>✨</span> Generate JCL
+          </button>
+          <button id="clearPrompt" class="btn-secondary" type="button">Clear</button>
+        </div>
+
+        <p id="status" class="message" role="status" style="display: none;"></p>
+      </section>
+
+      <!-- Manual JCL Builder Panel (Hidden by default) -->
+      <section id="manualSection" class="card" style="display: none;">
+        <div class="card-title-row">
+          <h2 class="card-title"><span>🛠️</span> Visual JCL Card Builder</h2>
+          <select id="presetTemplateSelect" style="width: auto; font-size: 0.74rem; padding: 4px 8px;">
+            <option value="">Load Template...</option>
+            <option value="IEFBR14_ALLOCATE">IEFBR14: Allocate Sequential</option>
+            <option value="IEFBR14_DELETE">IEFBR14: Delete Dataset</option>
+            <option value="IEBGENER_COPY">IEBGENER: Copy Dataset</option>
+            <option value="DFSORT_SORT">DFSORT: Sort Records</option>
+            <option value="IDCAMS_DEFINE_CLUSTER">IDCAMS: Define KSDS Cluster</option>
+            <option value="IDCAMS_REPRO">IDCAMS: REPRO VSAM Copy</option>
+          </select>
+        </div>
+
+        <!-- Job Card Settings -->
+        <div class="builder-section">
+          <div class="builder-section-title"><span>📋</span> JOB Statement Parameters</div>
+          <div class="form-grid-3">
+            <div>
+              <label for="jobName">Job Name</label>
+              <input type="text" id="jobName" value="MYJOB01" maxlength="8" style="text-transform: uppercase;">
+            </div>
+            <div>
+              <label for="jobAcct">Accounting</label>
+              <input type="text" id="jobAcct" value="(ACCT#123)">
+            </div>
+            <div>
+              <label for="jobProg">Programmer</label>
+              <input type="text" id="jobProg" value="'SYSADMIN'">
+            </div>
+          </div>
+          <div class="form-grid-3" style="margin-top: 6px;">
+            <div>
+              <label for="jobClass">Class</label>
+              <input type="text" id="jobClass" value="A" maxlength="1">
+            </div>
+            <div>
+              <label for="jobMsgClass">MsgClass</label>
+              <input type="text" id="jobMsgClass" value="X" maxlength="1">
+            </div>
+            <div>
+              <label for="jobMsgLevel">MsgLevel</label>
+              <input type="text" id="jobMsgLevel" value="(1,1)">
+            </div>
+          </div>
+          <div class="form-grid-2" style="margin-top: 6px;">
+            <div>
+              <label for="jobNotify">Notify</label>
+              <input type="text" id="jobNotify" value="&SYSUID">
+            </div>
+            <div>
+              <label for="jobRegion">Region</label>
+              <input type="text" id="jobRegion" value="0M">
+            </div>
+          </div>
+        </div>
+
+        <!-- EXEC Steps Configuration -->
+        <div id="stepsContainer" class="builder-section">
+          <div class="builder-section-title">
+            <span>⚙️</span> EXEC Steps
+            <button type="button" id="addStepBtn" class="btn-secondary" style="font-size: 0.7rem; padding: 2px 7px;">+ Add Step</button>
+          </div>
+          <div id="stepsList">
+            <!-- Dynamic steps rendered by JavaScript -->
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+          <button id="buildManual" class="btn-primary" type="button">
+            <span>🔨</span> Render JCL Cards
+          </button>
+          <button id="resetManual" class="btn-secondary" type="button">Reset Form</button>
+        </div>
+        <p id="builderStatus" class="message" role="status" style="display: none;"></p>
+      </section>
+
+      <!-- AI Conversational Edit Panel (Hidden by default) -->
+      <section id="editSection" class="card" style="display: none;">
+        <div class="card-title-row">
+          <h2 class="card-title"><span>✏️</span> Conversational JCL Editor</h2>
+        </div>
+        <p style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 8px;">
+          Direct the AI to modify your current JCL code. Review the proposed diff, changes, and static diagnostics before applying.
+        </p>
+
+        <!-- Quick-Edit Suggestion Chips -->
+        <div class="presets-group">
+          <div class="presets-label">Quick-Edit Suggestions</div>
+          <div class="presets-pills">
+            <button type="button" class="preset-chip edit-chip" data-edit="Change SORT order from ascending to descending">Change SORT order to descending</button>
+            <button type="button" class="preset-chip edit-chip" data-edit="Add a second sort key at column 15 of length 5 character ascending">Add a second sort key</button>
+            <button type="button" class="preset-chip edit-chip" data-edit="Change dataset DISP to SHR on the input DD">Change DISP to SHR</button>
+            <button type="button" class="preset-chip edit-chip" data-edit="Increase primary SPACE allocation from 5 cylinders to 25 cylinders">Increase primary SPACE allocation</button>
+            <button type="button" class="preset-chip edit-chip" data-edit="Add a new EXEC step executing IEFBR14 to allocate temporary work file">Add a new EXEC step</button>
+          </div>
+        </div>
+
+        <label for="modifyInstruction">Natural-Language Modification Instruction</label>
+        <textarea id="modifyInstruction" placeholder="e.g. Change sort order to descending, add a second sort key, increase space..."></textarea>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+          <button id="modifyBtn" class="btn-primary" type="button">
+            <span>✏️</span> Modify JCL
+          </button>
+          <button id="clearEditPrompt" class="btn-secondary" type="button">Clear</button>
+        </div>
+
+        <p id="editStatus" class="message" role="status" style="display: none;"></p>
+      </section>
+
+      <!-- AI-Powered JCL Error Explainer Panel (Hidden by default) -->
+      <section id="explainerSection" class="card" style="display: none;">
+        <div class="card-title-row">
+          <h2 class="card-title"><span>🔍</span> JCL & JES Error Explainer</h2>
+        </div>
+
+        <p style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 8px;">
+          Analyze JES job logs, system ABENDs (e.g. S806, S0C7, S0C4), user ABENDs, and utility condition codes with deterministic pattern recognition and optional AI reasoning.
+        </p>
+
+        <!-- Privacy Warning Banner -->
+        <div class="privacy-warning-banner" style="font-size: 0.74rem; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--accent-amber); border-radius: var(--radius-sm); margin-bottom: 12px; color: var(--accent-amber); line-height: 1.4;">
+          ⚠️ <strong>Operational Privacy Notice:</strong> Pasted job logs and JES spools may contain sensitive operational info, dataset paths, or user IDs. Do not paste production credentials. All analysis is performed securely without accessing live mainframe environments.
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label for="logInput" style="margin: 0; font-weight: 600;">JES Job Log / Error Message Text</label>
+          <div style="display: flex; gap: 6px;">
+            <button id="pasteLogBtn" class="btn-secondary" type="button" style="font-size: 0.72rem; padding: 2px 8px;" title="Paste from clipboard">📋 Paste</button>
+            <button id="clearLogBtn" class="btn-secondary" type="button" style="font-size: 0.72rem; padding: 2px 8px;" title="Clear input">Clear</button>
+          </div>
+        </div>
+
+        <textarea id="logInput" rows="6" placeholder="Paste JES job log, IEF450I, IECxxxI, ABEND (e.g. S806, S0C7, S0C4), or utility messages here...&#10;Example: IEF450I PAYJOB STEP1 - ABEND=S806 U0000 REASON=00000004"></textarea>
+
+        <!-- Quick Start Sample Error Chips -->
+        <div class="presets-group" style="margin-top: 10px;">
+          <div class="presets-label">Common Error Samples</div>
+          <div class="presets-pills">
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEF450I PAYJOB STEP1 - ABEND=S806 U0000 REASON=00000004">S806: PGM Not Found</button>
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEF450I CALCJOB COMPUTE - ABEND=S0C7 U0000 REASON=00000007">S0C7: Data Exception</button>
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEF450I REPORT RUNREP - ABEND=S0C4 U0000 REASON=00000004">S0C4: Protection Exception</button>
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEC141I 013-18,IGG0191A,COPYJOB,STEP1,SYSUT1">S013-18: DCB Conflict</button>
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEF452I BATCH01 - JOB FAILED - JCL ERROR">IEF452I: JCL Error</button>
+            <button type="button" class="preset-chip explainer-sample-chip" data-sample="IEF142I SORTJOB SORT1 - STEP WAS EXECUTED - COND CODE 0012">RC=0012: Step Error</button>
+          </div>
+        </div>
+
+        <!-- Options: Include JCL context & AI toggle -->
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-card-subtle); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
+            <input type="checkbox" id="includeJclContext" checked style="cursor: pointer;">
+            <span><strong>Include current JCL as context</strong> (correlates failed steps & DDs without changing your editor code)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
+            <input type="checkbox" id="useAiExplainer" checked style="cursor: pointer;">
+            <span><strong>Enable AI explanation</strong> (synthesizes evidence, causes, and actionable recommendations)</span>
+          </label>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+          <button id="explainErrorBtn" class="btn-primary" type="button">
+            <span>🔍</span> Explain Error
+          </button>
+        </div>
+
+        <p id="explainerStatus" class="message" role="status" style="display: none;"></p>
+
+        <!-- Explainer Results Panel -->
+        <div id="explainerResultsPanel" style="display: none; margin-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle);">
+            <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-cyan);">Analysis Results</span>
+            <button id="copyExplanationBtn" class="btn-secondary" type="button" style="font-size: 0.72rem; padding: 3px 8px;" title="Copy complete diagnosis to clipboard">📋 Copy Explanation</button>
+          </div>
+
+          <!-- Detected Error Codes & Badges -->
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 600; color: var(--text-dim); margin-bottom: 4px;">Detected Error Codes & Message IDs:</div>
+            <div id="detectedErrorsChips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+          </div>
+
+          <!-- Summary Box -->
+          <div id="explainerSummaryBox" style="font-size: 0.82rem; padding: 10px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-sm); margin-bottom: 10px; border-left: 3px solid var(--accent-cyan); line-height: 1.5;">
+            <strong>Summary:</strong> <span id="explainerSummaryText"></span>
+          </div>
+
+          <!-- Correlated JCL Statements (if any) -->
+          <div id="explainerJclSection" style="display: none; margin-bottom: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 600; color: var(--accent-cyan); margin-bottom: 4px;">🎯 Correlated JCL Statements in Editor:</div>
+            <div id="explainerJclLinesList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+          </div>
+
+          <!-- Likely Causes -->
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 600; color: var(--text-dim); margin-bottom: 4px;">🔍 Likely Causes:</div>
+            <ul id="explainerCausesList" class="inspector-list" style="max-height: 140px;"></ul>
+          </div>
+
+          <!-- Troubleshooting Steps -->
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 600; color: var(--text-dim); margin-bottom: 4px;">🛠️ Recommended Troubleshooting Steps:</div>
+            <ol id="explainerStepsList" class="inspector-list" style="max-height: 180px; padding-left: 18px; list-style-type: decimal;"></ol>
+          </div>
+
+          <!-- Limitations & Uncertainty Notes -->
+          <div style="margin-top: 10px; padding: 8px 10px; background: rgba(148, 163, 184, 0.08); border-radius: var(--radius-sm); font-size: 0.72rem; color: var(--text-muted); border-left: 3px solid var(--text-dim);">
+            <div style="font-weight: 600; margin-bottom: 2px;">⚠️ Confidence & Uncertainty Notes:</div>
+            <div id="explainerLimitationsText"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- COLUMN 2: SHARED JCL CODE STUDIO & EDITOR                       -->
+    <!-- ============================================================== -->
+    <div id="columnEditor" class="studio-column">
+      
+      <!-- Proposed JCL Changes Review Card (Hidden until modification response) -->
+      <div id="proposalReviewPanel" class="card proposal-card" style="display: none; margin-bottom: 16px;">
+        <div class="card-title-row">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h2 class="card-title" style="color: var(--accent-cyan);"><span>🔍</span> Proposed Changes Review</h2>
+            <span id="proposalStatusBadge" class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan);">Pending Approval</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="applyChangesBtn" class="btn-primary" type="button" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+              <span>✅</span> Apply Changes
+            </button>
+            <button id="discardChangesBtn" class="btn-danger" type="button">
+              <span>✕</span> Discard
+            </button>
+          </div>
+        </div>
+
+        <div id="proposalSummaryBox" style="font-size: 0.82rem; padding: 8px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-sm); margin-bottom: 8px; border-left: 3px solid var(--accent-cyan);">
+          <strong>Summary:</strong> <span id="proposalSummaryText">Proposed changes will appear here</span>
+        </div>
+
+        <div id="proposalWarningBox" class="message error" style="display: none; margin-bottom: 8px;">
+          ⚠️ <strong>Validation Alert:</strong> <span id="proposalWarningText"></span>
+        </div>
+
+        <div id="proposalStaleAlert" class="message error" style="display: none; margin-bottom: 8px; background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border-left-color: var(--accent-amber);">
+          ⚠️ <strong>STALE PROPOSAL:</strong> The original JCL in the editor was modified while review was open. You must discard and re-run modification.
+        </div>
+
+        <div style="font-size: 0.74rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
+          Line Differences (Original vs Proposed)
+        </div>
+        <div id="diffViewerContainer" class="diff-container">
+          <div id="diffLinesList"></div>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-title-row">
+          <h2 class="card-title"><span>📄</span> JCL Code Studio</h2>
+          <div class="editor-toolbar">
+            <button id="undoBtn" class="btn-secondary" title="Undo (Ctrl+Z)" type="button"><span>↩️</span> Undo</button>
+            <button id="redoBtn" class="btn-secondary" title="Redo (Ctrl+Y)" type="button"><span>↪️</span> Redo</button>
+            <button id="validate" class="btn-secondary" title="Validate JCL against syntax rules" type="button"><span>🔍</span> Validate</button>
+            <button id="copy" class="btn-secondary" title="Copy exact JCL to clipboard" type="button"><span>📋</span> Copy</button>
+            <button id="download" class="btn-secondary" title="Download .jcl file" type="button"><span>💾</span> Download</button>
+            <button id="upperCase" class="btn-secondary" title="Format to uppercase" type="button"><span>🔠</span> Upper</button>
+            <button id="clearJcl" class="btn-secondary" title="Clear Editor" type="button"><span>🧹</span> Clear</button>
+          </div>
+        </div>
+
+        <!-- 80-Column JCL Card Ruler -->
+        <div class="card-ruler">
+          <span>Col 01-71: Instruction / Operands</span>
+          <span>Col 72: Cont</span>
+          <span>Col 73-80: Sequence</span>
+          <span style="color:var(--accent-rose);">Col 81+: Overflow</span>
+        </div>
+
+        <!-- Synchronized Line-Numbered Editor -->
+        <div class="editor-container">
+          <div id="lineNumbers" class="line-numbers">
+            <span class="line-num">1</span>
+          </div>
+          <div class="col-80-guide" title="Column 80 Boundary"></div>
+          <textarea id="output" spellcheck="false" wrap="off" placeholder="// JCL code will appear here or can be typed directly..."></textarea>
+        </div>
+
+        <!-- Editor Footer & Status -->
+        <div class="editor-footer">
+          <div>
+            <span id="cursorPos">Ln 1, Col 1</span> • 
+            <span id="charCount">0 characters • 1 line</span>
+          </div>
+          <div>
+            <span id="col80Status" class="col80-ok">Col 80: OK</span>
+          </div>
+          <div>
+            <span id="unsavedBadge" class="badge badge-saved">● Saved</span>
+          </div>
+        </div>
+
+        <!-- Live Validation Alert Banner & Token Cost -->
+        <div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;">
+          <p id="validation" class="message" role="status" style="font-size: 0.78rem; margin: 0;">Ready for static validation.</p>
+          <div id="usageBadge" class="badge" style="display:none; background: rgba(59, 130, 246, 0.12); color: var(--accent-blue); font-family: var(--font-mono); font-size: 0.72rem;">
+            <span id="usageText">Tokens: 0 in / 0 out</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- COLUMN 3: VALIDATION & EXPLANATION PANELS                       -->
+    <!-- ============================================================== -->
+    <div id="columnValidation" class="studio-column">
+      
+      <!-- Static Validation Report Card -->
+      <section class="card inspector-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h2 style="margin: 0; padding: 0; border: none;"><span>🛡️</span> Static Validation</h2>
+          <span class="badge" style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.25);">Static Only • Not z/OS Verified</span>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px;">
+          <span id="summaryPassed" class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3);">Ready</span>
+          <span id="badgeErrors" class="badge" style="background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3);">0 Errors</span>
+          <span id="badgeWarnings" class="badge" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3);">0 Warnings</span>
+          <span id="badgeInfo" class="badge" style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); border-color: rgba(6, 182, 212, 0.3);">0 Info</span>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+          <button id="filterAll" class="val-filter-btn active" type="button" onclick="setValidationFilter('all')">All</button>
+          <button id="filterErrors" class="val-filter-btn" type="button" onclick="setValidationFilter('error')">Errors</button>
+          <button id="filterWarnings" class="val-filter-btn" type="button" onclick="setValidationFilter('warning')">Warnings</button>
+          <button id="filterInfo" class="val-filter-btn" type="button" onclick="setValidationFilter('info')">Info</button>
+        </div>
+
+        <!-- Diagnostics List -->
+        <ul id="validationIssues" class="inspector-list">
+          <li class="info">Click 'Validate' or edit JCL to analyze static syntax, parameters, and utility DD requirements.</li>
+        </ul>
+      </section>
+
+      <!-- Explanation & Environment Notes Card -->
+      <section class="card inspector-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h2 style="margin: 0; padding: 0; border: none;"><span>💡</span> Explanation & Notes</h2>
+          <span id="identifiedUtilityBadge" class="badge" style="font-size: 0.65rem; background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); font-family: var(--font-mono);">AUTO</span>
+        </div>
+
+        <div style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Statement Explanations</div>
+        <ul id="explanation" class="inspector-list" style="max-height: 140px; margin-bottom: 10px;">
+          <li class="info">Explanations of utility steps and control cards will appear here.</li>
+        </ul>
+
+        <div style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Assumptions & Requirements</div>
+        <ul id="notes" class="inspector-list" style="max-height: 120px;">
+          <li class="info">Assumed dataset formats, device units, and volume qualifiers will be listed here.</li>
+        </ul>
+      </section>
+
+    </div>
+
+  </div>
+
+  <!-- Settings Modal (Backend API URL & Access Key) -->
+  <div id="settingsModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this)closeSettingsModal()">
+    <div class="modal-content card" style="max-width: 520px; width: 92%; margin: auto;">
+      <div class="card-title-row">
+        <h2 class="card-title"><span>⚙️</span> Studio Settings</h2>
+        <button type="button" class="btn-icon-sm" onclick="closeSettingsModal()" title="Close">✕</button>
+      </div>
+
+      <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 14px;">
+        Configure backend connectivity and access credentials for GitHub Pages or remote deployments.
+      </p>
+
+      <div>
+        <label for="settingApiBaseUrl">Backend API Base URL</label>
+        <input type="text" id="settingApiBaseUrl" placeholder="e.g. https://jcl-studio-ai.onrender.com (leave blank for local)">
+        <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+          Leave empty when running locally or on the same origin.
+        </p>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <label for="settingAccessKey">Studio Access Key (Optional)</label>
+        <input type="password" id="settingAccessKey" placeholder="Enter access key if protected">
+        <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+          Stored locally in your browser (never transmitted to third parties or committed to source control).
+        </p>
+      </div>
+
+      <div id="connectionStatusBox" style="margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.76rem; background: var(--bg-card-subtle); display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-subtle);">
+        <span>Backend Status:</span>
+        <span id="backendConnectionStatus" style="font-weight: 600;">Checking...</span>
+      </div>
+
+      <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn-secondary" onclick="testBackendConnection()">Test Connection</button>
+        <button type="button" class="btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>IBM, z/OS, IEFBR14, IEBGENER, DFSORT, and IDCAMS are trademarks of International Business Machines Corporation.</p>
+    <p>This developer tool provides illustrative JCL templates and static syntactic validation. Code must be verified in a non-production z/OS test environment.</p>
+  </footer>
+</div>
+
+<div id="toast" class="toast" role="alert">Copied to clipboard!</div>
+
+<script>
+// =====================================================================
+// JCL STUDIO AI — APPLICATION JAVASCRIPT & STATE MANAGEMENT
+// =====================================================================
+
+const el = id => document.getElementById(id);
+
+// =====================================================================
+// API CLIENT CONFIGURATION & BASE URL RESOLUTION
+// =====================================================================
+const API_CONFIG = {
+  getApiBaseUrl() {
+    if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
+      return window.APP_CONFIG.API_BASE_URL.replace(/\/+$/, '');
+    }
+    const saved = localStorage.getItem('jcl_studio_api_base_url');
+    if (saved && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryApi = urlParams.get('api_base');
+    if (queryApi && queryApi.trim()) {
+      return queryApi.trim().replace(/\/+$/, '');
+    }
+    return '';
+  },
+
+  getAccessKey() {
+    return localStorage.getItem('jcl_studio_access_key') || '';
+  },
+
+  setApiBaseUrl(url) {
+    if (url && url.trim()) {
+      localStorage.setItem('jcl_studio_api_base_url', url.trim().replace(/\/+$/, ''));
+    } else {
+      localStorage.removeItem('jcl_studio_api_base_url');
+    }
+  },
+
+  setAccessKey(key) {
+    if (key && key.trim()) {
+      localStorage.setItem('jcl_studio_access_key', key.trim());
+    } else {
+      localStorage.removeItem('jcl_studio_access_key');
+    }
+  }
+};
+
+async function apiFetch(endpoint, options = {}) {
+  const baseUrl = API_CONFIG.getApiBaseUrl();
+  const url = baseUrl ? `${baseUrl}${endpoint}` : endpoint;
+
+  const headers = { ...(options.headers || {}) };
+  const accessKey = API_CONFIG.getAccessKey();
+  if (accessKey && !headers['X-Studio-Access-Key']) {
+    headers['X-Studio-Access-Key'] = accessKey;
+  }
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    const cloned = response.clone();
+    try {
+      const data = await cloned.json();
+      if (data.detail && data.detail.includes('Access key required')) {
+        showToast('⚠️ Studio Access Key required. Configure in ⚙️ Settings.');
+        if (typeof openSettingsModal === 'function') {
+          setTimeout(openSettingsModal, 600);
+        }
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  }
+
+  return response;
+}
+
+window.openSettingsModal = () => {
+  const modal = el('settingsModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  if (el('settingApiBaseUrl')) el('settingApiBaseUrl').value = API_CONFIG.getApiBaseUrl();
+  if (el('settingAccessKey')) el('settingAccessKey').value = API_CONFIG.getAccessKey();
+  testBackendConnection();
+};
+
+window.closeSettingsModal = () => {
+  const modal = el('settingsModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveSettings = async () => {
+  const urlVal = el('settingApiBaseUrl') ? el('settingApiBaseUrl').value.trim() : '';
+  const keyVal = el('settingAccessKey') ? el('settingAccessKey').value.trim() : '';
+
+  API_CONFIG.setApiBaseUrl(urlVal);
+  API_CONFIG.setAccessKey(keyVal);
+
+  showToast('Settings saved successfully!');
+  await testBackendConnection();
+  loadServerConfig();
+  setTimeout(closeSettingsModal, 400);
+};
+
+window.testBackendConnection = async () => {
+  const statusEl = el('backendConnectionStatus');
+  if (!statusEl) return;
+  statusEl.textContent = 'Testing connection...';
+  statusEl.style.color = 'var(--text-muted)';
+
+  try {
+    const res = await apiFetch('/health');
+    if (res.ok) {
+      const data = await res.json();
+      statusEl.textContent = `● Connected (${data.service || 'OK'})`;
+      statusEl.style.color = 'var(--accent-emerald)';
+    } else {
+      statusEl.textContent = `✕ Server returned HTTP ${res.status}`;
+      statusEl.style.color = 'var(--accent-rose)';
+    }
+  } catch (err) {
+    statusEl.textContent = '✕ Cannot connect to backend';
+    statusEl.style.color = 'var(--accent-rose)';
+  }
+};
+
+// Central Application State
+const appState = {
+  activeMode: 'ai',           // 'ai' | 'manual'
+  mobileView: 'generator',    // 'generator' | 'editor' | 'validation'
+  theme: 'dark',              // 'dark' | 'light'
+  hasUnsavedChanges: false,
+  isValidationStale: false,
+  currentDiagnostics: [],
+  activeValFilter: 'all',
+  isGenerating: false,
+  isBuilding: false,
+  isValidating: false
+};
+
+// History Stack for Editor Undo / Redo
+const editorHistory = {
+  stack: [],
+  index: -1,
+  maxSize: 50,
+  push(val) {
+    if (this.index >= 0 && this.stack[this.index] === val) return;
+    this.stack = this.stack.slice(0, this.index + 1);
+    this.stack.push(val);
+    if (this.stack.length > this.maxSize) this.stack.shift();
+    this.index = this.stack.length - 1;
+    this.updateButtons();
+  },
+  undo() {
+    if (this.index > 0) {
+      this.index--;
+      this.updateButtons();
+      return this.stack[this.index];
+    }
+    return null;
+  },
+  redo() {
+    if (this.index < this.stack.length - 1) {
+      this.index++;
+      this.updateButtons();
+      return this.stack[this.index];
+    }
+    return null;
+  },
+  updateButtons() {
+    if (el('undoBtn')) el('undoBtn').disabled = (this.index <= 0);
+    if (el('redoBtn')) el('redoBtn').disabled = (this.index >= this.stack.length - 1);
+  }
+};
+
+// Utility descriptions
+const UTILITY_DESCRIPTIONS = {
+  AUTO: "AI automatically selects the most appropriate utility based on your requirement.",
+  IEFBR14: "Dummy branch-and-return utility used primarily to allocate new DASD datasets or conditionally delete existing files.",
+  IEBGENER: "IBM general-purpose dataset utility used to copy sequential datasets or convert sequential data into partitioned datasets.",
+  DFSORT: "IBM high-performance sort/merge program used to sort, merge, filter (INCLUDE/OMIT), and reformat records.",
+  IDCAMS: "Integrated Catalog Administration Services utility used to define, delete, print, and REPRO (copy) VSAM clusters and catalogs."
+};
+
+// Toast notification helper
+function showToast(msg) {
+  const t = el('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 2400);
+}
+
+// Confirmation helper before overwriting unsaved work
+function confirmOverwriteIfNeeded(actionName = 'overwrite') {
+  if (appState.hasUnsavedChanges && el('output').value.trim().length > 0) {
+    return confirm(`You have unsaved changes in the JCL editor. Are you sure you want to ${actionName} with new content?`);
+  }
+  return true;
+}
+
+// =====================================================================
+// THEME MANAGEMENT (DARK / LIGHT)
+// =====================================================================
+function setTheme(theme) {
+  appState.theme = theme;
+  localStorage.setItem('jcl_studio_theme', theme);
+  if (theme === 'light') {
+    document.body.classList.add('light-theme');
+    if (el('themeIcon')) el('themeIcon').textContent = '🌙';
+    if (el('themeLabel')) el('themeLabel').textContent = 'Dark';
+  } else {
+    document.body.classList.remove('light-theme');
+    if (el('themeIcon')) el('themeIcon').textContent = '☀️';
+    if (el('themeLabel')) el('themeLabel').textContent = 'Light';
+  }
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('jcl_studio_theme') || 'dark';
+  setTheme(saved);
+}
+
+if (el('themeToggleBtn')) {
+  el('themeToggleBtn').onclick = () => {
+    setTheme(appState.theme === 'dark' ? 'light' : 'dark');
+  };
+}
+
+// =====================================================================
+// MOBILE NAVIGATION (TABS FOR SMALL SCREENS)
+// =====================================================================
+window.setMobileView = (view) => {
+  appState.mobileView = view;
+  ['mobileTabGen', 'mobileTabEditor', 'mobileTabVal'].forEach(id => {
+    if (el(id)) el(id).classList.remove('active');
+  });
+  ['columnGenerator', 'columnEditor', 'columnValidation'].forEach(id => {
+    if (el(id)) el(id).classList.remove('mobile-active');
+  });
+
+  if (view === 'generator') {
+    if (el('mobileTabGen')) el('mobileTabGen').classList.add('active');
+    if (el('columnGenerator')) el('columnGenerator').classList.add('mobile-active');
+  } else if (view === 'editor') {
+    if (el('mobileTabEditor')) el('mobileTabEditor').classList.add('active');
+    if (el('columnEditor')) el('columnEditor').classList.add('mobile-active');
+  } else if (view === 'validation') {
+    if (el('mobileTabVal')) el('mobileTabVal').classList.add('active');
+    if (el('columnValidation')) el('columnValidation').classList.add('mobile-active');
+  }
+};
+
+// Conversational AI Edit State
+let lastEditSnapshot = '';
+let currentProposal = null;
+let isProposalStale = false;
+
+// =====================================================================
+// MODE SWITCHING (AI GENERATOR VS MANUAL BUILDER VS AI EDIT VS EXPLAINER)
+// =====================================================================
+el('tabAiMode').onclick = () => {
+  appState.activeMode = 'ai';
+  el('tabAiMode').classList.add('active');
+  el('tabManualMode').classList.remove('active');
+  if (el('tabEditMode')) el('tabEditMode').classList.remove('active');
+  if (el('tabExplainerMode')) el('tabExplainerMode').classList.remove('active');
+  el('aiSection').style.display = 'block';
+  el('manualSection').style.display = 'none';
+  if (el('editSection')) el('editSection').style.display = 'none';
+  if (el('explainerSection')) el('explainerSection').style.display = 'none';
+};
+
+el('tabManualMode').onclick = () => {
+  appState.activeMode = 'manual';
+  el('tabManualMode').classList.add('active');
+  el('tabAiMode').classList.remove('active');
+  if (el('tabEditMode')) el('tabEditMode').classList.remove('active');
+  if (el('tabExplainerMode')) el('tabExplainerMode').classList.remove('active');
+  el('aiSection').style.display = 'none';
+  el('manualSection').style.display = 'block';
+  if (el('editSection')) el('editSection').style.display = 'none';
+  if (el('explainerSection')) el('explainerSection').style.display = 'none';
+  if (!manualSteps.length) {
+    loadDefaultManualStep();
+  }
+};
+
+if (el('tabEditMode')) {
+  el('tabEditMode').onclick = () => {
+    appState.activeMode = 'edit';
+    el('tabEditMode').classList.add('active');
+    el('tabAiMode').classList.remove('active');
+    el('tabManualMode').classList.remove('active');
+    if (el('tabExplainerMode')) el('tabExplainerMode').classList.remove('active');
+    el('aiSection').style.display = 'none';
+    el('manualSection').style.display = 'none';
+    el('editSection').style.display = 'block';
+    if (el('explainerSection')) el('explainerSection').style.display = 'none';
+  };
+}
+
+if (el('tabExplainerMode')) {
+  el('tabExplainerMode').onclick = () => {
+    appState.activeMode = 'explainer';
+    el('tabExplainerMode').classList.add('active');
+    el('tabAiMode').classList.remove('active');
+    el('tabManualMode').classList.remove('active');
+    if (el('tabEditMode')) el('tabEditMode').classList.remove('active');
+    el('aiSection').style.display = 'none';
+    el('manualSection').style.display = 'none';
+    if (el('editSection')) el('editSection').style.display = 'none';
+    el('explainerSection').style.display = 'block';
+  };
+}
+
+// Quick-Edit Suggestion Chips
+document.querySelectorAll('.edit-chip').forEach(btn => {
+  btn.onclick = () => {
+    if (el('modifyInstruction')) {
+      el('modifyInstruction').value = btn.dataset.edit;
+      showToast(`Loaded: ${btn.dataset.edit}`);
+    }
+  };
+});
+
+if (el('clearEditPrompt')) {
+  el('clearEditPrompt').onclick = () => {
+    el('modifyInstruction').value = '';
+    el('modifyInstruction').focus();
+  };
+}
+
+// Target Utility dropdown change
+el('utility').onchange = () => {
+  const val = el('utility').value;
+  el('utilityDesc').textContent = UTILITY_DESCRIPTIONS[val] || UTILITY_DESCRIPTIONS.AUTO;
+  if (el('identifiedUtilityBadge')) el('identifiedUtilityBadge').textContent = val;
+};
+
+// Quick-start prompt chips
+document.querySelectorAll('.preset-chip').forEach(btn => {
+  btn.onclick = () => {
+    el('utility').value = btn.dataset.util;
+    el('utility').onchange();
+    el('prompt').value = btn.dataset.prompt;
+    showToast(`Loaded ${btn.dataset.util} template!`);
+  };
+});
+
+// Clear prompt button
+el('clearPrompt').onclick = () => {
+  el('prompt').value = '';
+  el('prompt').focus();
+};
+
+// =====================================================================
+// SHARED JCL EDITOR: LINE NUMBERS, 80-COL GUIDE, UNLOAD & STATS
+// =====================================================================
+function updateLineNumbers() {
+  const textarea = el('output');
+  const lineNumbers = el('lineNumbers');
+  if (!textarea || !lineNumbers) return;
+
+  const lineCount = (textarea.value.match(/\n/g) || []).length + 1;
+  let nums = '';
+  for (let i = 1; i <= lineCount; i++) {
+    nums += `<span class="line-num" onclick="goToLine(${i})">${i}</span>`;
+  }
+  lineNumbers.innerHTML = nums;
+}
+
+function updateEditorStats() {
+  const textarea = el('output');
+  if (!textarea) return;
+  const txt = textarea.value;
+  const selStart = textarea.selectionStart || 0;
+  const linesBefore = txt.slice(0, selStart).split('\n');
+  const currLine = linesBefore.length;
+  const currCol = linesBefore[linesBefore.length - 1].length + 1;
+
+  if (el('cursorPos')) el('cursorPos').textContent = `Ln ${currLine}, Col ${currCol}`;
+  const totalLines = txt.split('\n').length;
+  if (el('charCount')) el('charCount').textContent = `${txt.length} characters • ${totalLines} line${totalLines === 1 ? '' : 's'}`;
+
+  // Check 80-column overflow
+  const allLines = txt.split('\n');
+  const hasOverflow = allLines.some(l => l.length > 80);
+  const col80 = el('col80Status');
+  if (col80) {
+    if (hasOverflow) {
+      col80.textContent = 'Col 80: OVERFLOW DETECTED';
+      col80.className = 'col80-warn';
+    } else {
+      col80.textContent = 'Col 80: OK';
+      col80.className = 'col80-ok';
+    }
+  }
+
+  // Update line gutter
+  updateLineNumbers();
+}
+
+// Synchronize gutter scroll with textarea
+el('output').addEventListener('scroll', () => {
+  if (el('lineNumbers')) {
+    el('lineNumbers').scrollTop = el('output').scrollTop;
+  }
+});
+
+// Editor Input: Update Stats, Mark Unsaved, Mark Stale & Debounce Validation
+let valDebounceTimer = null;
+el('output').addEventListener('input', () => {
+  appState.hasUnsavedChanges = true;
+  appState.isValidationStale = true;
+
+  if (el('unsavedBadge')) {
+    el('unsavedBadge').textContent = '● Unsaved edits';
+    el('unsavedBadge').className = 'badge badge-unsaved';
+  }
+
+  // Mark validation as stale immediately
+  if (el('summaryPassed')) {
+    el('summaryPassed').textContent = '⚠️ Stale (Editing...)';
+    el('summaryPassed').style.color = 'var(--accent-amber)';
+    el('summaryPassed').style.background = 'rgba(245, 158, 11, 0.1)';
+    el('summaryPassed').style.borderColor = 'rgba(245, 158, 11, 0.3)';
+  }
+  if (el('validationIssues')) {
+    el('validationIssues').classList.add('stale');
+  }
+
+  // Check stale proposal if review panel is active
+  if (currentProposal) {
+    if (el('output').value !== lastEditSnapshot) {
+      isProposalStale = true;
+      if (el('proposalStaleAlert')) el('proposalStaleAlert').style.display = 'block';
+      if (el('applyChangesBtn')) el('applyChangesBtn').disabled = true;
+      if (el('proposalStatusBadge')) {
+        el('proposalStatusBadge').textContent = '⚠️ Stale';
+        el('proposalStatusBadge').style.color = 'var(--accent-amber)';
+      }
+    } else {
+      isProposalStale = false;
+      if (el('proposalStaleAlert')) el('proposalStaleAlert').style.display = 'none';
+      if (el('applyChangesBtn')) el('applyChangesBtn').disabled = false;
+      if (el('proposalStatusBadge')) {
+        el('proposalStatusBadge').textContent = 'Pending Approval';
+        el('proposalStatusBadge').style.color = 'var(--accent-cyan)';
+      }
+    }
+  }
+
+  updateEditorStats();
+
+  // Push to history after short pause
+  clearTimeout(valDebounceTimer);
+  valDebounceTimer = setTimeout(() => {
+    editorHistory.push(el('output').value);
+    validateCurrentJcl();
+  }, 750);
+});
+
+el('output').addEventListener('keyup', updateEditorStats);
+el('output').addEventListener('click', updateEditorStats);
+
+// Undo & Redo Handlers
+el('undoBtn').onclick = () => {
+  const prev = editorHistory.undo();
+  if (prev !== null) {
+    el('output').value = prev;
+    updateEditorStats();
+    validateCurrentJcl();
+    showToast('Undo');
+  }
+};
+
+el('redoBtn').onclick = () => {
+  const next = editorHistory.redo();
+  if (next !== null) {
+    el('output').value = next;
+    updateEditorStats();
+    validateCurrentJcl();
+    showToast('Redo');
+  }
+};
+
+// Copy to Clipboard (Copies Exact JCL Text)
+el('copy').onclick = async () => {
+  const content = el('output').value;
+  if (!content) {
+    showToast('Editor is empty');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(content);
+    showToast('JCL copied to clipboard!');
+    el('validation').textContent = 'Copied exact JCL to clipboard.';
+    el('validation').className = 'message';
+  } catch (e) {
+    el('validation').textContent = 'Clipboard write failed; select and copy manually.';
+    el('validation').className = 'message error';
+  }
+};
+
+// Download .jcl File (Downloads Exact Content)
+el('download').onclick = () => {
+  const content = el('output').value;
+  if (!content.trim()) {
+    showToast('Nothing to download!');
+    return;
+  }
+  const jobMatch = content.match(/^\/\/([A-Z0-9$#@]{1,8})\s+JOB/m);
+  const filename = (jobMatch ? jobMatch[1] : 'JOBSTREAM') + '.jcl';
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`Downloaded ${filename}`);
+
+  // Mark saved
+  appState.hasUnsavedChanges = false;
+  if (el('unsavedBadge')) {
+    el('unsavedBadge').textContent = '● Saved';
+    el('unsavedBadge').className = 'badge badge-saved';
+  }
+};
+
+// Format to Uppercase
+el('upperCase').onclick = () => {
+  const text = el('output').value;
+  el('output').value = text.toUpperCase();
+  editorHistory.push(el('output').value);
+  updateEditorStats();
+  showToast('Converted JCL to uppercase');
+};
+
+// Clear JCL Editor with Explicit Confirmation
+el('clearJcl').onclick = () => {
+  if (confirm('Clear the current JCL editor? Any unsaved changes will be lost.')) {
+    el('output').value = '';
+    editorHistory.push('');
+    appState.hasUnsavedChanges = false;
+    if (el('unsavedBadge')) {
+      el('unsavedBadge').textContent = '● Saved';
+      el('unsavedBadge').className = 'badge badge-saved';
+    }
+    updateEditorStats();
+    el('validation').textContent = 'Editor cleared.';
+    validateCurrentJcl();
+    showToast('Cleared editor');
+  }
+};
+
+// =====================================================================
+// BACKEND CONFIG & PROVIDER DISPLAY
+// =====================================================================
+function updateProviderDisplay(prov, model) {
+  const badge = el('activeModelBadge');
+  if (badge) {
+    if (prov === 'gemini') {
+      badge.textContent = `⚡ Gemini (${model || 'gemini-2.5-flash'})`;
+      badge.style.color = 'var(--accent-blue)';
+    } else {
+      badge.textContent = `⚡ OpenAI (${model || 'gpt-5.4-mini'})`;
+      badge.style.color = 'var(--accent-emerald)';
+    }
+  }
+}
+
+if (el('providerSelect')) {
+  el('providerSelect').onchange = () => {
+    const val = el('providerSelect').value;
+    updateProviderDisplay(val, val === 'gemini' ? 'gemini-2.5-flash' : 'gpt-5.4-mini');
+  };
+}
+
+async function loadServerConfig() {
+  try {
+    const res = await apiFetch('/api/config');
+    if (res.ok) {
+      const data = await res.json();
+      if (el('providerSelect') && data.provider) {
+        el('providerSelect').value = data.provider;
+        updateProviderDisplay(data.provider, data.provider === 'gemini' ? data.gemini_model : data.openai_model);
+      }
+    }
+  } catch (e) {
+    // Silent fallback
+  }
+}
+loadServerConfig();
+
+// =====================================================================
+// AI JCL GENERATION (POST /api/generate)
+// =====================================================================
+el('generate').onclick = async () => {
+  const promptVal = el('prompt').value.trim();
+
+  // 1. Client-side empty/short prompt validation
+  if (promptVal.length < 10) {
+    el('status').style.display = 'block';
+    el('status').textContent = 'Please enter a requirement description of at least 10 characters.';
+    el('status').className = 'message error';
+    el('prompt').focus();
+    return;
+  }
+
+  // 2. Overwrite confirmation if unsaved changes exist
+  if (!confirmOverwriteIfNeeded('replace current JCL')) {
+    return;
+  }
+
+  const selectedProvider = el('providerSelect') ? el('providerSelect').value : 'openai';
+  const targetUtility = el('utility').value;
+
+  appState.isGenerating = true;
+  el('generate').disabled = true;
+  el('status').style.display = 'block';
+  el('status').textContent = `Generating illustrative JCL with ${selectedProvider.toUpperCase()}...`;
+  el('status').className = 'message';
+  el('usageBadge').style.display = 'none';
+
+  try {
+    const res = await apiFetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: promptVal,
+        utility: targetUtility,
+        provider: selectedProvider
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(typeof data.detail === 'string' ? data.detail : 'Generation failed');
+    }
+
+    // Write to shared editor
+    el('output').value = data.jcl;
+    editorHistory.push(data.jcl);
+    appState.hasUnsavedChanges = false;
+    if (el('unsavedBadge')) {
+      el('unsavedBadge').textContent = '● Saved';
+      el('unsavedBadge').className = 'badge badge-saved';
+    }
+    updateEditorStats();
+
+    // Display usage and estimated cost if available
+    if (data.usage && data.usage.total_tokens) {
+      el('usageBadge').style.display = 'inline-flex';
+      const costText = (data.usage.estimated_cost_usd !== null && data.usage.estimated_cost_usd !== undefined)
+        ? ` • Est. Cost: $${data.usage.estimated_cost_usd.toFixed(6)}`
+        : '';
+      el('usageText').textContent = `⚡ ${data.provider.toUpperCase()} (${data.model}) • Tokens: ${data.usage.input_tokens} in / ${data.usage.output_tokens} out (${data.usage.total_tokens} total)${costText}`;
+    }
+
+    // Display LLM explanations, assumptions & warnings in explanation panel
+    if (el('identifiedUtilityBadge')) {
+      el('identifiedUtilityBadge').textContent = targetUtility === 'AUTO' ? 'AI ASSIGNED' : targetUtility;
+    }
+    renderList('explanation', data.explanation, 'info');
+
+    const notes = [
+      ...data.assumptions.map(x => ({ text: 'Assumption: ' + x, className: 'info' })),
+      ...data.warnings.map(x => ({ text: 'Warning: ' + x, className: 'warning' }))
+    ];
+    renderList('notes', notes);
+
+    el('status').textContent = `Generation complete using ${data.provider.toUpperCase()} (${data.model}). Illustrative JCL generated for review.`;
+    showToast('JCL generated successfully!');
+
+    // Automatically trigger detailed validation
+    await validateCurrentJcl();
+
+    // On mobile screens, automatically switch to editor view
+    if (window.innerWidth < 1100) {
+      setMobileView('editor');
+    }
+  } catch (e) {
+    el('status').textContent = e.message;
+    el('status').className = 'message error';
+  } finally {
+    appState.isGenerating = false;
+    el('generate').disabled = false;
+  }
+};
+
+// Generic list renderer for explanations and assumptions
+function renderList(id, items, defaultClass = 'info') {
+  const node = el(id);
+  if (!node) return;
+  node.replaceChildren();
+  if (!items || items.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'None';
+    li.className = 'info';
+    node.append(li);
+    return;
+  }
+  for (const item of items) {
+    const li = document.createElement('li');
+    if (typeof item === 'string') {
+      li.textContent = item;
+      li.className = defaultClass;
+    } else {
+      li.textContent = item.text || item.message || JSON.stringify(item);
+      li.className = item.className || defaultClass;
+    }
+    node.append(li);
+  }
+}
+
+// =====================================================================
+// CONVERSATIONAL JCL EDITING (POST /api/jcl/modify)
+// =====================================================================
+if (el('modifyBtn')) {
+  el('modifyBtn').onclick = async () => {
+    const currentJcl = el('output').value;
+    if (!currentJcl.trim()) {
+      el('editStatus').style.display = 'block';
+      el('editStatus').textContent = 'Editor is empty. Generate or enter JCL before requesting modifications.';
+      el('editStatus').className = 'message error';
+      return;
+    }
+
+    const instruction = el('modifyInstruction').value.trim();
+    if (instruction.length < 3) {
+      el('editStatus').style.display = 'block';
+      el('editStatus').textContent = 'Please enter a modification instruction of at least 3 characters.';
+      el('editStatus').className = 'message error';
+      el('modifyInstruction').focus();
+      return;
+    }
+
+    const selectedProvider = el('providerSelect') ? el('providerSelect').value : 'openai';
+
+    el('modifyBtn').disabled = true;
+    el('editStatus').style.display = 'block';
+    el('editStatus').textContent = `Analyzing JCL and applying changes with ${selectedProvider.toUpperCase()}...`;
+    el('editStatus').className = 'message';
+
+    lastEditSnapshot = currentJcl;
+
+    try {
+      const res = await apiFetch('/api/jcl/modify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jcl: currentJcl,
+          instruction: instruction,
+          provider: selectedProvider
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(typeof data.detail === 'string' ? data.detail : 'Modification request failed');
+      }
+
+      currentProposal = data;
+      isProposalStale = false;
+      renderProposalReview(data);
+
+      el('editStatus').textContent = `Proposed modifications generated (${data.changes ? data.changes.length : 1} change(s)). Review diff before applying.`;
+      el('editStatus').className = 'message';
+      showToast('Proposed changes ready for review!');
+
+      // On mobile screens, automatically switch to editor view
+      if (window.innerWidth < 1100) {
+        setMobileView('editor');
+      }
+    } catch (e) {
+      el('editStatus').textContent = e.message;
+      el('editStatus').className = 'message error';
+    } finally {
+      el('modifyBtn').disabled = false;
+    }
+  };
+}
+
+function renderProposalReview(data) {
+  const panel = el('proposalReviewPanel');
+  if (!panel) return;
+  panel.style.display = 'block';
+
+  if (el('proposalSummaryText')) el('proposalSummaryText').textContent = data.summary;
+  if (el('proposalStaleAlert')) el('proposalStaleAlert').style.display = 'none';
+  if (el('applyChangesBtn')) el('applyChangesBtn').disabled = false;
+  if (el('proposalStatusBadge')) {
+    el('proposalStatusBadge').textContent = 'Pending Approval';
+    el('proposalStatusBadge').style.color = 'var(--accent-cyan)';
+  }
+
+  // Warning if new errors or validation errors exist in proposal
+  const warningBox = el('proposalWarningBox');
+  const warningText = el('proposalWarningText');
+  const errorsCount = data.validation?.counts?.errors || 0;
+  if (data.new_errors_introduced || errorsCount > 0) {
+    warningBox.style.display = 'block';
+    warningText.textContent = `The proposed JCL has ${errorsCount} validation error(s)${data.new_errors_introduced ? ' (new errors introduced!)' : ''}. Inspect changes carefully before applying.`;
+  } else {
+    warningBox.style.display = 'none';
+  }
+
+  // Render Diff Lines
+  const diffList = el('diffLinesList');
+  diffList.replaceChildren();
+
+  const lines = data.diff_lines || [];
+  if (lines.length === 0) {
+    const row = document.createElement('div');
+    row.textContent = 'No textual differences detected.';
+    row.className = 'diff-line unchanged';
+    diffList.append(row);
+    return;
+  }
+
+  for (const line of lines) {
+    const row = document.createElement('div');
+    row.className = `diff-line ${line.type}`;
+
+    const numSpan = document.createElement('span');
+    numSpan.className = 'diff-line-num';
+    numSpan.textContent = line.line_mod ? line.line_mod : (line.line_orig ? line.line_orig : ' ');
+
+    const signSpan = document.createElement('span');
+    signSpan.className = 'diff-sign';
+    signSpan.textContent = line.type === 'added' ? '+' : (line.type === 'removed' ? '-' : ' ');
+
+    const contentSpan = document.createElement('span');
+    contentSpan.className = 'diff-content';
+    contentSpan.textContent = line.content;
+
+    row.append(numSpan, signSpan, contentSpan);
+    diffList.append(row);
+  }
+}
+
+if (el('applyChangesBtn')) {
+  el('applyChangesBtn').onclick = () => {
+    if (!currentProposal) return;
+    if (isProposalStale || el('output').value !== lastEditSnapshot) {
+      alert('Cannot apply stale proposal! The original JCL in the editor was modified. Please re-run modification.');
+      return;
+    }
+
+    // Push previous version onto undo stack
+    editorHistory.push(el('output').value);
+
+    // Apply modified JCL to editor
+    el('output').value = currentProposal.modified_jcl;
+    lastEditSnapshot = currentProposal.modified_jcl;
+    appState.hasUnsavedChanges = true;
+    if (el('unsavedBadge')) {
+      el('unsavedBadge').textContent = '● Unsaved edits';
+      el('unsavedBadge').className = 'badge badge-unsaved';
+    }
+    updateEditorStats();
+
+    // Close proposal panel
+    currentProposal = null;
+    el('proposalReviewPanel').style.display = 'none';
+
+    // Mark validation stale and validate modified JCL
+    validateCurrentJcl();
+    showToast('Applied modifications! Previous version saved to Undo stack.');
+  };
+}
+
+if (el('discardChangesBtn')) {
+  el('discardChangesBtn').onclick = () => {
+    currentProposal = null;
+    isProposalStale = false;
+    el('proposalReviewPanel').style.display = 'none';
+    showToast('Discarded proposed changes. Editor unchanged.');
+  };
+}
+
+// =====================================================================
+// STATIC VALIDATION PANEL (POST /api/jcl/validate)
+// =====================================================================
+window.goToLine = (lineNum, column) => {
+  const textarea = el('output');
+  if (!textarea || !textarea.value) return;
+  const lines = textarea.value.split('\n');
+  if (lineNum < 1 || lineNum > lines.length) return;
+
+  let startIdx = 0;
+  for (let i = 0; i < lineNum - 1; i++) {
+    startIdx += lines[i].length + 1;
+  }
+  const currentLine = lines[lineNum - 1];
+
+  // On mobile screens, switch to editor view first
+  if (window.innerWidth < 1100) {
+    setMobileView('editor');
+  }
+
+  textarea.focus();
+  if (column && column > 0) {
+    const colIdx = Math.min(currentLine.length, column - 1);
+    const tokenMatch = currentLine.slice(colIdx).match(/^[A-Z0-9$#@]+/i);
+    const selLen = tokenMatch ? tokenMatch[0].length : 1;
+    textarea.setSelectionRange(startIdx + colIdx, startIdx + colIdx + selLen);
+  } else {
+    textarea.setSelectionRange(startIdx, startIdx + currentLine.length);
+  }
+
+  // Scroll to targeted line
+  const lineHeight = 20;
+  textarea.scrollTop = Math.max(0, (lineNum - 4) * lineHeight);
+  showToast(`Jumped to Line ${lineNum}${column ? ':' + column : ''}`);
+};
+
+window.setValidationFilter = (filter) => {
+  appState.activeValFilter = filter;
+  ['filterAll', 'filterErrors', 'filterWarnings', 'filterInfo'].forEach(id => {
+    if (el(id)) el(id).classList.remove('active');
+  });
+  if (filter === 'all' && el('filterAll')) el('filterAll').classList.add('active');
+  if (filter === 'error' && el('filterErrors')) el('filterErrors').classList.add('active');
+  if (filter === 'warning' && el('filterWarnings')) el('filterWarnings').classList.add('active');
+  if (filter === 'info' && el('filterInfo')) el('filterInfo').classList.add('active');
+  renderDiagnostics();
+};
+
+function renderDiagnostics() {
+  const listNode = el('validationIssues');
+  if (!listNode) return;
+  listNode.replaceChildren();
+  listNode.classList.remove('stale');
+
+  const filtered = appState.currentDiagnostics.filter(d => {
+    if (appState.activeValFilter === 'all') return true;
+    return d.severity.toLowerCase() === appState.activeValFilter.toLowerCase();
+  });
+
+  if (filtered.length === 0) {
+    const li = document.createElement('li');
+    if (appState.currentDiagnostics.length === 0) {
+      li.textContent = 'All static syntactic checks passed! (Remember: verify against actual z/OS environment).';
+      li.className = 'info';
+    } else {
+      li.textContent = `No diagnostics matching filter '${appState.activeValFilter}'.`;
+      li.className = 'info';
+    }
+    listNode.append(li);
+    return;
+  }
+
+  for (const d of filtered) {
+    const li = document.createElement('li');
+    li.className = d.severity.toLowerCase();
+
+    const colArg = d.column ? `, ${d.column}` : '';
+    const lineBtn = d.line ? `<button type="button" class="line-jump-btn" onclick="goToLine(${d.line}${colArg})" title="Jump to line and column in editor">Ln ${d.line}${d.column ? ':' + d.column : ''}</button>` : '';
+    const fixHtml = d.suggested_fix ? `<div class="suggested-fix">💡 <strong>Suggested Fix:</strong> ${d.suggested_fix}</div>` : '';
+
+    li.innerHTML = `
+      <div class="diag-header">
+        ${lineBtn}
+        <span class="diag-rule">[${d.rule_id}]</span>
+        <strong style="text-transform: uppercase; font-size: 0.7rem;">${d.severity}</strong>
+      </div>
+      <div>${d.message}</div>
+      ${fixHtml}
+    `;
+    listNode.append(li);
+  }
+}
+
+async function validateCurrentJcl() {
+  const jclText = el('output').value;
+  if (!jclText.trim()) {
+    el('validation').textContent = 'Editor is empty. Enter JCL to validate.';
+    el('validation').className = 'message';
+    appState.currentDiagnostics = [];
+    appState.isValidationStale = false;
+    renderDiagnostics();
+    return;
+  }
+
+  appState.isValidating = true;
+  try {
+    const res = await apiFetch('/api/jcl/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jcl: jclText })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('Validation request failed');
+
+    appState.currentDiagnostics = data.diagnostics || [];
+    appState.isValidationStale = false;
+
+    // Update Counts Badges
+    const errors = data.counts?.errors || 0;
+    const warnings = data.counts?.warnings || 0;
+    const info = data.counts?.info || 0;
+
+    if (el('badgeErrors')) el('badgeErrors').textContent = `${errors} Error${errors === 1 ? '' : 's'}`;
+    if (el('badgeWarnings')) el('badgeWarnings').textContent = `${warnings} Warning${warnings === 1 ? '' : 's'}`;
+    if (el('badgeInfo')) el('badgeInfo').textContent = `${info} Info`;
+
+    if (data.valid) {
+      el('summaryPassed').textContent = 'PASSED (Static Checks)';
+      el('summaryPassed').style.color = 'var(--accent-emerald)';
+      el('summaryPassed').style.background = 'rgba(16, 185, 129, 0.1)';
+      el('summaryPassed').style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      el('validation').textContent = warnings ? `Static checks passed with ${warnings} warning(s). (Not verified on z/OS)` : 'Static checks passed. (Not verified on z/OS)';
+      el('validation').className = 'message';
+    } else {
+      el('summaryPassed').textContent = `${errors} Error${errors === 1 ? '' : 's'} Detected`;
+      el('summaryPassed').style.color = 'var(--accent-rose)';
+      el('summaryPassed').style.background = 'rgba(244, 63, 94, 0.1)';
+      el('summaryPassed').style.borderColor = 'rgba(244, 63, 94, 0.3)';
+      el('validation').textContent = `${errors} error(s) must be resolved before z/OS submission.`;
+      el('validation').className = 'message error';
+    }
+
+    renderDiagnostics();
+  } catch (e) {
+    el('validation').textContent = e.message;
+    el('validation').className = 'message error';
+  } finally {
+    appState.isValidating = false;
+  }
+}
+
+el('validate').onclick = validateCurrentJcl;
+
+// =====================================================================
+// MANUAL JCL BUILDER (FORM-BASED, REORDERABLE DDS, PRESET TEMPLATES)
+// =====================================================================
+let manualSteps = [];
+
+function loadDefaultManualStep() {
+  manualSteps = [
+    {
+      step_name: 'STEP01',
+      utility: 'IEFBR14',
+      pgm_override: '',
+      parm: '',
+      region: '',
+      cond: '',
+      comments: 'Allocate sequential dataset',
+      dds: [
+        {
+          dd_name: 'NEWDS',
+          dsn: 'USER.SAMPLE.DATA',
+          disp: '(NEW,CATLG,DELETE)',
+          space: '(CYL,(5,1),RLSE)',
+          unit: 'SYSDA',
+          recfm: 'FB',
+          lrecl: 80,
+          blksize: 0
+        }
+      ]
+    }
+  ];
+  renderSteps();
+}
+
+function renderSteps() {
+  const container = el('stepsList');
+  if (!container) return;
+  container.replaceChildren();
+
+  manualSteps.forEach((step, sIdx) => {
+    const card = document.createElement('div');
+    card.className = 'step-card';
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <strong style="color:var(--accent-cyan); font-size:0.84rem;">Step ${sIdx + 1} (${step.step_name || 'STEP'})</strong>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn-secondary" style="font-size:0.7rem; padding:2px 7px;" onclick="autoPopulateDds(${sIdx})">⚡ Auto DDs</button>
+          ${manualSteps.length > 1 ? `<button type="button" class="btn-danger" onclick="removeStep(${sIdx})">Remove Step</button>` : ''}
+        </div>
+      </div>
+      
+      <div class="form-grid-3">
+        <div>
+          <label>Step Name</label>
+          <input type="text" value="${step.step_name}" maxlength="8" onchange="manualSteps[${sIdx}].step_name=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label>Utility</label>
+          <select onchange="manualSteps[${sIdx}].utility=this.value; renderSteps();">
+            <option value="IEFBR14" ${step.utility === 'IEFBR14' ? 'selected' : ''}>IEFBR14</option>
+            <option value="IEBGENER" ${step.utility === 'IEBGENER' ? 'selected' : ''}>IEBGENER</option>
+            <option value="DFSORT" ${step.utility === 'DFSORT' ? 'selected' : ''}>DFSORT</option>
+            <option value="IDCAMS" ${step.utility === 'IDCAMS' ? 'selected' : ''}>IDCAMS</option>
+            <option value="CUSTOM" ${step.utility === 'CUSTOM' ? 'selected' : ''}>CUSTOM</option>
+          </select>
+        </div>
+        <div>
+          <label>PGM Override</label>
+          <input type="text" value="${step.pgm_override || ''}" placeholder="${step.utility}" onchange="manualSteps[${sIdx}].pgm_override=this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <div class="form-grid-3" style="margin-top:6px;">
+        <div>
+          <label>PARM</label>
+          <input type="text" value="${step.parm || ''}" placeholder="e.g. 'LIST'" onchange="manualSteps[${sIdx}].parm=this.value">
+        </div>
+        <div>
+          <label>Region</label>
+          <input type="text" value="${step.region || ''}" placeholder="e.g. 4M" onchange="manualSteps[${sIdx}].region=this.value">
+        </div>
+        <div>
+          <label>COND</label>
+          <input type="text" value="${step.cond || ''}" placeholder="e.g. (4,LT)" onchange="manualSteps[${sIdx}].cond=this.value">
+        </div>
+      </div>
+
+      <div style="margin-top:6px;">
+        <label>Comments</label>
+        <input type="text" value="${step.comments || ''}" placeholder="Step description" onchange="manualSteps[${sIdx}].comments=this.value">
+      </div>
+
+      <!-- DD Statements List -->
+      <div style="margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">DD Statements (${step.dds.length})</span>
+          <button type="button" class="btn-secondary" style="font-size:0.7rem; padding:2px 7px;" onclick="addDd(${sIdx})">+ Add DD</button>
+        </div>
+        <div id="ddList_${sIdx}"></div>
+      </div>
+    `;
+
+    container.append(card);
+
+    // Render DDs for this step
+    const ddContainer = card.querySelector(`#ddList_${sIdx}`);
+    step.dds.forEach((dd, dIdx) => {
+      const ddBox = document.createElement('div');
+      ddBox.className = 'dd-row';
+      ddBox.innerHTML = `
+        <div class="dd-header">
+          <span style="font-family:var(--font-mono); font-size:0.78rem; color:#38bdf8;">//${dd.dd_name || 'DDNAME'} DD</span>
+          <div class="dd-tools">
+            ${dIdx > 0 ? `<button type="button" class="btn-icon-sm" onclick="moveDdUp(${sIdx}, ${dIdx})" title="Move Up">⬆️</button>` : ''}
+            ${dIdx < step.dds.length - 1 ? `<button type="button" class="btn-icon-sm" onclick="moveDdDown(${sIdx}, ${dIdx})" title="Move Down">⬇️</button>` : ''}
+            <button type="button" class="btn-danger" onclick="removeDd(${sIdx}, ${dIdx})" title="Remove DD">✕</button>
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div>
+            <label>DD Name</label>
+            <input type="text" value="${dd.dd_name || ''}" maxlength="8" onchange="manualSteps[${sIdx}].dds[${dIdx}].dd_name=this.value.toUpperCase(); renderSteps();">
+          </div>
+          <div>
+            <label>Type</label>
+            <select onchange="updateDdType(${sIdx}, ${dIdx}, this.value)">
+              <option value="DSN" ${!dd.dummy && !dd.sysout && dd.instream_data === undefined ? 'selected' : ''}>Dataset (DSN)</option>
+              <option value="SYSOUT" ${dd.sysout ? 'selected' : ''}>SYSOUT (Spool)</option>
+              <option value="DUMMY" ${dd.dummy ? 'selected' : ''}>DUMMY</option>
+              <option value="INSTREAM" ${dd.instream_data !== undefined ? 'selected' : ''}>In-stream (SYSIN DD *)</option>
+            </select>
+          </div>
+          ${dd.sysout ? `
+            <div>
+              <label>SYSOUT Class</label>
+              <input type="text" value="${dd.sysout || '*'}" onchange="manualSteps[${sIdx}].dds[${dIdx}].sysout=this.value">
+            </div>
+          ` : (dd.dummy ? `<div></div>` : (dd.instream_data !== undefined ? `
+            <div>
+              <label>Delimiter</label>
+              <input type="text" value="${dd.dlm || '/*'}" placeholder="/*" onchange="manualSteps[${sIdx}].dds[${dIdx}].dlm=this.value">
+            </div>
+          ` : `
+            <div>
+              <label>DSN</label>
+              <input type="text" value="${dd.dsn || ''}" placeholder="USER.DATASET" onchange="manualSteps[${sIdx}].dds[${dIdx}].dsn=this.value">
+            </div>
+          `))}
+        </div>
+
+        ${!dd.dummy && !dd.sysout && dd.instream_data === undefined ? `
+          <div class="form-grid-3" style="margin-top:6px;">
+            <div>
+              <label>DISP</label>
+              <input type="text" value="${dd.disp || ''}" placeholder="SHR or (NEW,CATLG,DELETE)" onchange="manualSteps[${sIdx}].dds[${dIdx}].disp=this.value">
+            </div>
+            <div>
+              <label>SPACE</label>
+              <input type="text" value="${dd.space || ''}" placeholder="(CYL,(5,1),RLSE)" onchange="manualSteps[${sIdx}].dds[${dIdx}].space=this.value">
+            </div>
+            <div>
+              <label>UNIT</label>
+              <input type="text" value="${dd.unit || ''}" placeholder="SYSDA" onchange="manualSteps[${sIdx}].dds[${dIdx}].unit=this.value">
+            </div>
+          </div>
+          <div class="form-grid-3" style="margin-top:6px;">
+            <div>
+              <label>RECFM</label>
+              <input type="text" value="${dd.recfm || ''}" placeholder="FB" onchange="manualSteps[${sIdx}].dds[${dIdx}].recfm=this.value.toUpperCase()">
+            </div>
+            <div>
+              <label>LRECL</label>
+              <input type="number" value="${dd.lrecl || ''}" placeholder="80" onchange="manualSteps[${sIdx}].dds[${dIdx}].lrecl=parseInt(this.value)||null">
+            </div>
+            <div>
+              <label>BLKSIZE</label>
+              <input type="number" value="${dd.blksize !== undefined && dd.blksize !== null ? dd.blksize : ''}" placeholder="0" onchange="manualSteps[${sIdx}].dds[${dIdx}].blksize=parseInt(this.value)||0">
+            </div>
+          </div>
+        ` : ''}
+
+        ${dd.instream_data !== undefined ? `
+          <div style="margin-top:6px;">
+            <label>In-stream Control Statements</label>
+            <textarea style="min-height:65px; font-family:var(--font-mono); font-size:0.78rem;" onchange="manualSteps[${sIdx}].dds[${dIdx}].instream_data=this.value">${dd.instream_data || ''}</textarea>
+          </div>
+        ` : ''}
+      `;
+      ddContainer.append(ddBox);
+    });
+  });
+}
+
+window.addStep = () => {
+  const stepNum = manualSteps.length + 1;
+  manualSteps.push({
+    step_name: `STEP0${stepNum}`.slice(-8),
+    utility: 'IEFBR14',
+    pgm_override: '',
+    parm: '',
+    region: '',
+    cond: '',
+    comments: '',
+    dds: []
+  });
+  renderSteps();
+};
+
+window.removeStep = (idx) => {
+  manualSteps.splice(idx, 1);
+  renderSteps();
+};
+
+window.addDd = (sIdx) => {
+  manualSteps[sIdx].dds.push({
+    dd_name: 'NEWDD',
+    dsn: 'USER.DATASET',
+    disp: 'SHR'
+  });
+  renderSteps();
+};
+
+window.removeDd = (sIdx, dIdx) => {
+  manualSteps[sIdx].dds.splice(dIdx, 1);
+  renderSteps();
+};
+
+window.moveDdUp = (sIdx, dIdx) => {
+  if (dIdx > 0) {
+    const dds = manualSteps[sIdx].dds;
+    const temp = dds[dIdx];
+    dds[dIdx] = dds[dIdx - 1];
+    dds[dIdx - 1] = temp;
+    renderSteps();
+    showToast('Moved DD statement up');
+  }
+};
+
+window.moveDdDown = (sIdx, dIdx) => {
+  const dds = manualSteps[sIdx].dds;
+  if (dIdx < dds.length - 1) {
+    const temp = dds[dIdx];
+    dds[dIdx] = dds[dIdx + 1];
+    dds[dIdx + 1] = temp;
+    renderSteps();
+    showToast('Moved DD statement down');
+  }
+};
+
+window.updateDdType = (sIdx, dIdx, type) => {
+  const dd = manualSteps[sIdx].dds[dIdx];
+  delete dd.sysout;
+  delete dd.dummy;
+  delete dd.instream_data;
+  delete dd.dlm;
+
+  if (type === 'SYSOUT') {
+    dd.sysout = '*';
+  } else if (type === 'DUMMY') {
+    dd.dummy = true;
+  } else if (type === 'INSTREAM') {
+    dd.instream_data = '  /* In-stream control statements */';
+  } else {
+    dd.dsn = dd.dsn || 'USER.DATASET';
+    dd.disp = dd.disp || 'SHR';
+  }
+  renderSteps();
+};
+
+window.autoPopulateDds = (sIdx) => {
+  const util = manualSteps[sIdx].utility;
+  if (util === 'IEBGENER') {
+    manualSteps[sIdx].dds = [
+      { dd_name: 'SYSUT1', dsn: 'USER.INPUT.DATA', disp: 'SHR' },
+      { dd_name: 'SYSUT2', dsn: 'USER.OUTPUT.DATA', disp: '(NEW,CATLG,DELETE)', space: '(CYL,(5,1),RLSE)', unit: 'SYSDA', recfm: 'FB', lrecl: 80, blksize: 0 },
+      { dd_name: 'SYSPRINT', sysout: '*' },
+      { dd_name: 'SYSIN', dummy: true }
+    ];
+  } else if (util === 'DFSORT') {
+    manualSteps[sIdx].dds = [
+      { dd_name: 'SORTIN', dsn: 'USER.UNSORTED.DATA', disp: 'SHR' },
+      { dd_name: 'SORTOUT', dsn: 'USER.SORTED.DATA', disp: '(NEW,CATLG,DELETE)', space: '(CYL,(10,2),RLSE)', unit: 'SYSDA', recfm: 'FB', lrecl: 80, blksize: 0 },
+      { dd_name: 'SORTWK01', unit: 'SYSDA', space: '(CYL,(5,2))' },
+      { dd_name: 'SYSOUT', sysout: '*' },
+      { dd_name: 'SYSIN', instream_data: '  SORT FIELDS=(1,10,CH,A)\n  RECORD FORMAT=FB,LENGTH=80' }
+    ];
+  } else if (util === 'IDCAMS') {
+    manualSteps[sIdx].dds = [
+      { dd_name: 'SYSPRINT', sysout: '*' },
+      { dd_name: 'SYSIN', instream_data: '  DELETE USER.SAMPLE.CLUSTER CLUSTER PURGE\n  SET MAXCC = 0\n  DEFINE CLUSTER (NAME(USER.SAMPLE.CLUSTER) -\n         INDEXED KEYS(8 0) RECORDSIZE(80 80))' }
+    ];
+  } else if (util === 'IEFBR14') {
+    manualSteps[sIdx].dds = [
+      { dd_name: 'NEWDS', dsn: 'USER.ALLOC.DATASET', disp: '(NEW,CATLG,DELETE)', unit: 'SYSDA', space: '(CYL,(5,1),RLSE)', recfm: 'FB', lrecl: 80, blksize: 0 }
+    ];
+  }
+  renderSteps();
+  showToast(`Auto-populated DDs for ${util}!`);
+};
+
+el('addStepBtn').onclick = window.addStep;
+
+// Load Preset Template in Builder
+let cachedTemplates = null;
+el('presetTemplateSelect').onchange = async () => {
+  const val = el('presetTemplateSelect').value;
+  if (!val) return;
+  try {
+    if (!cachedTemplates) {
+      const res = await apiFetch('/api/templates');
+      cachedTemplates = await res.json();
+    }
+    if (cachedTemplates && cachedTemplates[val]) {
+      const tmpl = cachedTemplates[val].request;
+      el('jobName').value = tmpl.job.job_name;
+      el('jobAcct').value = tmpl.job.accounting;
+      el('jobProg').value = tmpl.job.programmer_name;
+      el('jobClass').value = tmpl.job.job_class || 'A';
+      el('jobMsgClass').value = tmpl.job.msgclass || 'X';
+      el('jobMsgLevel').value = tmpl.job.msglevel || '(1,1)';
+      el('jobNotify').value = tmpl.job.notify || '&SYSUID';
+      el('jobRegion').value = tmpl.job.region || '0M';
+
+      manualSteps = JSON.parse(JSON.stringify(tmpl.steps));
+      renderSteps();
+
+      // Show deterministic template description in explanation panel
+      if (el('identifiedUtilityBadge')) el('identifiedUtilityBadge').textContent = cachedTemplates[val].utility;
+      renderList('explanation', [
+        `Template: ${cachedTemplates[val].title}`,
+        cachedTemplates[val].description,
+        `Configured ${tmpl.steps.length} execution step(s).`
+      ], 'info');
+      renderList('notes', [
+        'Deterministic manual template loaded without external LLM call.',
+        'Review DSN, SPACE, and UNIT parameters for your z/OS environment.'
+      ], 'info');
+
+      showToast(`Loaded ${cachedTemplates[val].title}!`);
+    }
+  } catch (e) {
+    showToast('Failed to load preset template.');
+  }
+};
+
+// Reset Manual Builder
+el('resetManual').onclick = () => {
+  loadDefaultManualStep();
+  showToast('Reset builder form');
+};
+
+// Build Manual JCL Button (Calls POST /api/build)
+el('buildManual').onclick = async () => {
+  // Confirm overwrite if unsaved edits exist in editor
+  if (!confirmOverwriteIfNeeded('replace current JCL with rendered cards')) {
+    return;
+  }
+
+  const req = {
+    job: {
+      job_name: el('jobName').value,
+      accounting: el('jobAcct').value,
+      programmer_name: el('jobProg').value,
+      job_class: el('jobClass').value,
+      msgclass: el('jobMsgClass').value,
+      msglevel: el('jobMsgLevel').value,
+      notify: el('jobNotify').value,
+      region: el('jobRegion').value
+    },
+    steps: manualSteps,
+    include_header: true
+  };
+
+  appState.isBuilding = true;
+  el('builderStatus').style.display = 'block';
+  el('builderStatus').textContent = 'Rendering JCL cards...';
+  el('builderStatus').className = 'message';
+
+  try {
+    const res = await apiFetch('/api/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('Build failed');
+
+    el('output').value = data.jcl;
+    editorHistory.push(data.jcl);
+    appState.hasUnsavedChanges = false;
+    if (el('unsavedBadge')) {
+      el('unsavedBadge').textContent = '● Saved';
+      el('unsavedBadge').className = 'badge badge-saved';
+    }
+    updateEditorStats();
+    el('builderStatus').textContent = 'JCL generated and validated.';
+    showToast('Manual JCL built successfully!');
+
+    // Show deterministic manual build explanation
+    renderList('explanation', [
+      `Manually formatted JCL stream for JOB '${req.job.job_name}'.`,
+      `Contains ${req.steps.length} step(s) with ${req.steps.reduce((acc, s) => acc + s.dds.length, 0)} total DD statement(s).`
+    ], 'info');
+
+    // Automatically trigger detailed validation
+    await validateCurrentJcl();
+
+    // On mobile screens, automatically switch to editor view
+    if (window.innerWidth < 1100) {
+      setMobileView('editor');
+    }
+  } catch (e) {
+    el('builderStatus').textContent = e.message;
+    el('builderStatus').className = 'message error';
+  } finally {
+    appState.isBuilding = false;
+  }
+};
+
+// =====================================================================
+// AI-POWERED JCL ERROR EXPLAINER LOGIC
+// =====================================================================
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+let currentExplanationResponse = null;
+
+// Sample Error Chips
+document.querySelectorAll('.explainer-sample-chip').forEach(btn => {
+  btn.onclick = () => {
+    if (el('logInput')) {
+      el('logInput').value = btn.dataset.sample;
+      el('logInput').focus();
+      showToast(`Loaded sample: ${btn.textContent.trim()}`);
+    }
+  };
+});
+
+// Paste Button
+if (el('pasteLogBtn')) {
+  el('pasteLogBtn').onclick = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          el('logInput').value = text;
+          showToast('Pasted log text from clipboard');
+        } else {
+          showToast('Clipboard is empty');
+        }
+      } else {
+        showToast('Clipboard reading not supported in this browser');
+      }
+    } catch (err) {
+      showToast('Could not access clipboard');
+    }
+  };
+}
+
+// Clear Log Button
+if (el('clearLogBtn')) {
+  el('clearLogBtn').onclick = () => {
+    el('logInput').value = '';
+    el('explainerResultsPanel').style.display = 'none';
+    el('explainerStatus').style.display = 'none';
+    currentExplanationResponse = null;
+    el('logInput').focus();
+    showToast('Cleared error log');
+  };
+}
+
+// Render Explainer Results
+function renderExplainerResults(data) {
+  // 1. Detected Error Badges
+  const chipsContainer = el('detectedErrorsChips');
+  chipsContainer.innerHTML = '';
+  if (!data.detected_errors || data.detected_errors.length === 0) {
+    const span = document.createElement('span');
+    span.style.fontSize = '0.74rem';
+    span.style.color = 'var(--text-dim)';
+    span.textContent = 'No standard IBM ABEND codes or recognized error message IDs detected in input text.';
+    chipsContainer.appendChild(span);
+  } else {
+    data.detected_errors.forEach(err => {
+      const chip = document.createElement('div');
+      chip.style.cssText = 'display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:var(--radius-sm); font-size:0.72rem; font-family:var(--font-mono);';
+
+      let bg = 'rgba(244, 63, 94, 0.15)';
+      let col = 'var(--accent-rose)';
+      let border = '1px solid rgba(244, 63, 94, 0.35)';
+
+      if (err.severity === 'warning') {
+        bg = 'rgba(245, 158, 11, 0.15)';
+        col = 'var(--accent-amber)';
+        border = '1px solid rgba(245, 158, 11, 0.35)';
+      } else if (err.severity === 'info') {
+        bg = 'rgba(6, 182, 212, 0.15)';
+        col = 'var(--accent-cyan)';
+        border = '1px solid rgba(6, 182, 212, 0.35)';
+      }
+
+      chip.style.background = bg;
+      chip.style.color = col;
+      chip.style.border = border;
+
+      const reasonPart = err.reason_code ? ` Reason=${escapeHtml(err.reason_code)}` : '';
+      const stepPart = err.step_name ? ` Step=${escapeHtml(err.step_name)}` : '';
+      const linePart = err.source_line ? ` [Log Line ${err.source_line}]` : '';
+
+      chip.innerHTML = `<strong>${escapeHtml(err.code)}</strong><span>(${escapeHtml(err.category)})${reasonPart}${stepPart}${linePart}</span>`;
+      chipsContainer.appendChild(chip);
+    });
+  }
+
+  // 2. Summary
+  el('explainerSummaryText').textContent = data.summary || 'No summary available.';
+
+  // 3. Correlated JCL Lines in Editor
+  const jclSection = el('explainerJclSection');
+  const jclLinesList = el('explainerJclLinesList');
+  jclLinesList.innerHTML = '';
+  if (data.related_jcl_lines && data.related_jcl_lines.length > 0) {
+    jclSection.style.display = 'block';
+    data.related_jcl_lines.forEach(item => {
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size:0.74rem; padding:6px 10px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;';
+      row.innerHTML = `
+        <div style="overflow:hidden; text-overflow:ellipsis;">
+          <button type="button" class="line-jump-btn" onclick="goToLine(${item.line_number})" title="Jump to Line ${item.line_number} in Editor">Ln ${item.line_number}</button>
+          <code style="font-family:var(--font-mono); color:var(--text-main); font-weight:600;">${escapeHtml(item.source_line)}</code>
+          <div style="font-size:0.69rem; color:var(--text-dim); margin-top:2px;">${escapeHtml(item.relevance)}</div>
+        </div>
+      `;
+      jclLinesList.appendChild(row);
+    });
+  } else {
+    jclSection.style.display = 'none';
+  }
+
+  // 4. Likely Causes
+  const causesList = el('explainerCausesList');
+  causesList.innerHTML = '';
+  if (data.likely_causes && data.likely_causes.length > 0) {
+    data.likely_causes.forEach(cause => {
+      const li = document.createElement('li');
+      li.className = 'error';
+      li.textContent = cause;
+      causesList.appendChild(li);
+    });
+  } else {
+    const li = document.createElement('li');
+    li.className = 'info';
+    li.textContent = 'No specific root causes could be confirmed from the supplied log text.';
+    causesList.appendChild(li);
+  }
+
+  // 5. Troubleshooting Steps
+  const stepsList = el('explainerStepsList');
+  stepsList.innerHTML = '';
+  if (data.troubleshooting_steps && data.troubleshooting_steps.length > 0) {
+    data.troubleshooting_steps.forEach(step => {
+      const li = document.createElement('li');
+      li.className = 'info';
+      li.textContent = step;
+      stepsList.appendChild(li);
+    });
+  } else {
+    const li = document.createElement('li');
+    li.className = 'info';
+    li.textContent = 'Review SYSOUT and job output listings for detailed messages.';
+    stepsList.appendChild(li);
+  }
+
+  // 6. Limitations & Uncertainty Notes
+  const limitationsContainer = el('explainerLimitationsText');
+  limitationsContainer.innerHTML = '';
+  const lims = data.limitations || [];
+  if (lims.length > 0) {
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'margin:4px 0 0 16px; padding:0;';
+    lims.forEach(lim => {
+      const li = document.createElement('li');
+      li.style.marginBottom = '2px';
+      li.textContent = lim;
+      ul.appendChild(li);
+    });
+    limitationsContainer.appendChild(ul);
+  } else {
+    limitationsContainer.textContent = 'Diagnosis is based strictly on supplied log text, not live JES access.';
+  }
+}
+
+// Explain Error Action
+if (el('explainErrorBtn')) {
+  el('explainErrorBtn').onclick = async () => {
+    const logText = el('logInput').value.trim();
+    if (!logText) {
+      el('explainerStatus').style.display = 'block';
+      el('explainerStatus').className = 'message error';
+      el('explainerStatus').textContent = 'Please enter or paste JES job log or error message text.';
+      el('logInput').focus();
+      return;
+    }
+
+    const includeJcl = el('includeJclContext') ? el('includeJclContext').checked : true;
+    const currentJcl = includeJcl ? el('output').value.trim() : null;
+    const useAi = el('useAiExplainer') ? el('useAiExplainer').checked : true;
+    const selectedProvider = el('providerSelect') ? el('providerSelect').value : 'openai';
+
+    el('explainErrorBtn').disabled = true;
+    el('explainerStatus').style.display = 'block';
+    el('explainerStatus').className = 'message';
+    el('explainerStatus').textContent = useAi
+      ? `Analyzing log and querying ${selectedProvider.toUpperCase()} for explanation...`
+      : 'Performing deterministic pattern analysis...';
+
+    try {
+      const res = await apiFetch('/api/jcl/explain-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          log_text: logText,
+          jcl: currentJcl && currentJcl.length > 0 ? currentJcl : null,
+          provider: selectedProvider,
+          use_ai: useAi
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(typeof data.detail === 'string' ? data.detail : 'Error explanation failed');
+      }
+
+      currentExplanationResponse = data;
+      renderExplainerResults(data);
+      el('explainerStatus').style.display = 'none';
+      el('explainerResultsPanel').style.display = 'block';
+
+      // Update token usage badge if AI was used and usage info provided
+      if (data.usage && el('usageBadge')) {
+        const u = data.usage;
+        const costStr = u.estimated_cost_usd !== undefined ? ` • ~$${u.estimated_cost_usd.toFixed(5)}` : '';
+        el('usageBadge').textContent = `Tokens: ${u.total_tokens || 0} (prompt ${u.prompt_tokens || 0}, comp ${u.completion_tokens || 0})${costStr}`;
+        el('usageBadge').style.display = 'inline-block';
+      }
+
+      showToast('Error analysis complete!');
+    } catch (err) {
+      el('explainerStatus').style.display = 'block';
+      el('explainerStatus').className = 'message error';
+      el('explainerStatus').innerHTML = `⚠️ <strong>Analysis Error:</strong> ${escapeHtml(err.message)} <button class="btn-secondary" style="font-size:0.7rem; padding:1px 6px; margin-left:8px;" onclick="el('explainErrorBtn').click()">Retry</button>`;
+    } finally {
+      el('explainErrorBtn').disabled = false;
+    }
+  };
+}
+
+// Copy Explanation Button (Never modifies editor JCL)
+if (el('copyExplanationBtn')) {
+  el('copyExplanationBtn').onclick = () => {
+    if (!currentExplanationResponse) {
+      showToast('No explanation to copy');
+      return;
+    }
+    const d = currentExplanationResponse;
+    const lines = [];
+    lines.push('JCL & JES ERROR ANALYSIS REPORT');
+    lines.push('===============================');
+    lines.push('');
+    lines.push('SUMMARY:');
+    lines.push(d.summary || 'N/A');
+    lines.push('');
+    if (d.detected_errors && d.detected_errors.length > 0) {
+      lines.push('DETECTED ERRORS & MESSAGES:');
+      d.detected_errors.forEach(e => {
+        const details = [
+          `Category: ${e.category}`,
+          `Severity: ${e.severity}`,
+          e.reason_code ? `Reason: ${e.reason_code}` : null,
+          e.step_name ? `Step: ${e.step_name}` : null,
+          e.source_line ? `Log Line: ${e.source_line}` : null
+        ].filter(Boolean).join(', ');
+        lines.push(`• [${e.code}] ${e.message} (${details})`);
+      });
+      lines.push('');
+    }
+    if (d.related_jcl_lines && d.related_jcl_lines.length > 0) {
+      lines.push('CORRELATED JCL STATEMENTS:');
+      d.related_jcl_lines.forEach(r => {
+        lines.push(`• Line ${r.line_number}: ${r.source_line} (${r.relevance})`);
+      });
+      lines.push('');
+    }
+    if (d.likely_causes && d.likely_causes.length > 0) {
+      lines.push('LIKELY CAUSES:');
+      d.likely_causes.forEach(c => lines.push(`• ${c}`));
+      lines.push('');
+    }
+    if (d.troubleshooting_steps && d.troubleshooting_steps.length > 0) {
+      lines.push('RECOMMENDED TROUBLESHOOTING STEPS:');
+      d.troubleshooting_steps.forEach((s, idx) => lines.push(`${idx + 1}. ${s}`));
+      lines.push('');
+    }
+    if (d.limitations && d.limitations.length > 0) {
+      lines.push('LIMITATIONS & CAVEATS:');
+      d.limitations.forEach(l => lines.push(`• ${l}`));
+      lines.push('');
+    }
+
+    const reportText = lines.join('\n');
+    navigator.clipboard.writeText(reportText).then(() => {
+      showToast('Diagnosis report copied to clipboard!');
+    }).catch(() => {
+      showToast('Could not write to clipboard');
+    });
+  };
+}
+
+// =====================================================================
+// INITIALIZATION
+// =====================================================================
+initTheme();
+loadDefaultManualStep();
+editorHistory.push(el('output').value);
+updateEditorStats();
+</script>
+</body>
+</html>
