@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: jcl-studio-ai-backend
+    name: ai-jcl-generator-api
     runtime: python
     plan: free
     region: oregon
@@ -22,7 +22,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: ALLOWED_ORIGINS
-        value: "https://your-username.github.io"
+        value: "https://kamalprakashpothamsetti.github.io"
       - key: RATE_LIMIT_PER_MINUTE
         value: "30"
       - key: DAILY_SPEND_LIMIT_USD

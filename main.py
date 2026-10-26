@@ -62,7 +62,7 @@ app = FastAPI(
 # Cross-Origin Resource Sharing (CORS) Configuration
 raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://pkama.github.io,http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000",
+    "https://kamalprakashpothamsetti.github.io,https://pkama.github.io,http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000",
 )
 allowed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip()]
 

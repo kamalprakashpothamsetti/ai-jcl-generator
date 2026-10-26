@@ -1017,6 +1017,7 @@ footer {
     <div class="header-controls">
       <span class="badge badge-disclaimer">⚠️ Illustrative Only • Not Verified on z/OS</span>
       <span id="activeModelBadge" class="badge badge-model">⚡ OpenAI (gpt-5.4-mini)</span>
+      <span id="backendStatusBadge" class="badge" style="cursor:pointer; font-size:0.7rem; border-color:rgba(148,163,184,0.3);" onclick="openSettingsModal()" title="Click to test or configure backend connection">● API Connecting...</span>
       <button id="themeToggleBtn" class="theme-toggle-btn" type="button" title="Toggle Dark/Light Theme">
         <span id="themeIcon">☀️</span> <span id="themeLabel">Light</span>
       </button>
@@ -1494,10 +1495,14 @@ footer {
 
       <div>
         <label for="settingApiBaseUrl">Backend API Base URL</label>
-        <input type="text" id="settingApiBaseUrl" placeholder="e.g. https://jcl-studio-ai.onrender.com (leave blank for local)">
+        <input type="text" id="settingApiBaseUrl" placeholder="https://ai-jcl-generator-api.onrender.com">
         <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
-          Leave empty when running locally or on the same origin.
+          Leave empty when running locally on localhost, or enter your Render backend URL.
         </p>
+      </div>
+
+      <div style="margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); background: rgba(59, 130, 246, 0.08); padding: 8px 10px; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-blue);">
+        💡 <strong>Render Free Tier Note:</strong> If the service has been idle for 15+ minutes, Render spins down the container. The first wake-up request takes 30–50 seconds. Once awake, requests respond instantly.
       </div>
 
       <div style="margin-top: 12px;">
@@ -1539,21 +1544,52 @@ const el = id => document.getElementById(id);
 // =====================================================================
 // API CLIENT CONFIGURATION & BASE URL RESOLUTION
 // =====================================================================
+
+// Safe HTML Escaping Utility
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const API_CONFIG = {
+  // Returns true if frontend is loaded locally (localhost/127.0.0.1)
+  isLocalHost() {
+    const host = window.location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '';
+  },
+
   getApiBaseUrl() {
-    if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
-      return window.APP_CONFIG.API_BASE_URL.replace(/\/+$/, '');
-    }
-    const saved = localStorage.getItem('jcl_studio_api_base_url');
-    if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
-    }
+    // 1. URL search query parameter override (e.g. ?api_base=...)
     const urlParams = new URLSearchParams(window.location.search);
     const queryApi = urlParams.get('api_base');
     if (queryApi && queryApi.trim()) {
       return queryApi.trim().replace(/\/+$/, '');
     }
-    return '';
+
+    // 2. Explicit user setting stored in browser localStorage
+    const saved = localStorage.getItem('jcl_studio_api_base_url');
+    if (saved !== null && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+
+    // 3. Localhost development: if browsing locally and not explicitly overridden, use relative path ("")
+    // This allows local development on http://localhost:8000 to hit the local FastAPI backend directly
+    if (this.isLocalHost()) {
+      return '';
+    }
+
+    // 4. Production runtime configuration (from config.js)
+    if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
+      return window.APP_CONFIG.API_BASE_URL.replace(/\/+$/, '');
+    }
+
+    // 5. Default deployed Render FastAPI backend
+    return 'https://ai-jcl-generator-api.onrender.com';
   },
 
   getAccessKey() {
@@ -1577,6 +1613,61 @@ const API_CONFIG = {
   }
 };
 
+// Friendly API Error Formatter with Render Cold Start Diagnosis & 1-Click Retry
+function formatApiError(err, retryActionStr = '') {
+  const baseUrl = API_CONFIG.getApiBaseUrl() || window.location.origin;
+  const isNetworkFailure = (
+    err instanceof TypeError ||
+    err.isNetworkError ||
+    (err.message && (
+      err.message.includes('fetch') ||
+      err.message.includes('NetworkError') ||
+      err.message.includes('Failed to') ||
+      err.message.includes('Load failed') ||
+      err.message.includes('aborted')
+    ))
+  );
+
+  const retryButtonHtml = retryActionStr
+    ? `<button type="button" class="btn-secondary" style="font-size:0.72rem; padding:2px 8px; margin-top:6px; display:inline-block;" onclick="${retryActionStr}">🔄 Retry Request</button>`
+    : '';
+
+  const settingsButtonHtml = `<button type="button" class="btn-secondary" style="font-size:0.72rem; padding:2px 8px; margin-top:6px; margin-left:6px; display:inline-block;" onclick="openSettingsModal()">⚙️ Settings</button>`;
+
+  if (isNetworkFailure) {
+    return (
+      `<div style="line-height:1.45;">` +
+      `<strong>⚠️ Backend Connection Failed:</strong> Could not connect to <code style="color:var(--accent-cyan); font-size:0.75rem;">${escapeHtml(baseUrl)}</code>.<br>` +
+      `<div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">` +
+      `• <strong>Render Cold Start:</strong> On Render's free tier, the backend spins down after inactivity. Waking up typically takes <strong>30–50 seconds</strong>.<br>` +
+      `• <strong>Health Check:</strong> Test if the server is awake by visiting <a href="${escapeHtml(baseUrl)}/health" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:underline;">${escapeHtml(baseUrl)}/health</a>.<br>` +
+      `</div>` +
+      `<div style="margin-top:4px;">${retryButtonHtml}${settingsButtonHtml}</div>` +
+      `</div>`
+    );
+  }
+
+  if (err.status === 502 || err.status === 503 || err.status === 504) {
+    return (
+      `<div style="line-height:1.45;">` +
+      `<strong>⚠️ Gateway Timeout / Cold Start (${err.status}):</strong><br>` +
+      `<div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">` +
+      `The Render server is waking up or temporarily busy. Please wait 15–30 seconds and retry.<br>` +
+      `Health URL: <a href="${escapeHtml(baseUrl)}/health" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:underline;">${escapeHtml(baseUrl)}/health</a>.` +
+      `</div>` +
+      `<div style="margin-top:4px;">${retryButtonHtml}${settingsButtonHtml}</div>` +
+      `</div>`
+    );
+  }
+
+  return (
+    `<div style="line-height:1.45;">` +
+    `<strong>⚠️ Request Failed:</strong> ${escapeHtml(err.message || 'Operation failed')}<br>` +
+    (retryActionStr ? `<div style="margin-top:4px;">${retryButtonHtml}</div>` : '') +
+    `</div>`
+  );
+}
+
 async function apiFetch(endpoint, options = {}) {
   const baseUrl = API_CONFIG.getApiBaseUrl();
   const url = baseUrl ? `${baseUrl}${endpoint}` : endpoint;
@@ -1587,7 +1678,14 @@ async function apiFetch(endpoint, options = {}) {
     headers['X-Studio-Access-Key'] = accessKey;
   }
 
-  const response = await fetch(url, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch (netErr) {
+    netErr.isNetworkError = true;
+    netErr.targetUrl = url;
+    throw netErr;
+  }
 
   if (response.status === 401) {
     const cloned = response.clone();
@@ -1602,6 +1700,13 @@ async function apiFetch(endpoint, options = {}) {
     } catch (e) {
       // Ignore JSON parse errors
     }
+  }
+
+  if (response.status === 502 || response.status === 503 || response.status === 504) {
+    const err = new Error(`Render gateway response: HTTP ${response.status}`);
+    err.status = response.status;
+    err.targetUrl = url;
+    throw err;
   }
 
   return response;
@@ -1637,22 +1742,43 @@ window.saveSettings = async () => {
 window.testBackendConnection = async () => {
   const statusEl = el('backendConnectionStatus');
   if (!statusEl) return;
-  statusEl.textContent = 'Testing connection...';
+  const targetUrl = (el('settingApiBaseUrl') && el('settingApiBaseUrl').value.trim()) || API_CONFIG.getApiBaseUrl() || window.location.origin;
+  statusEl.innerHTML = `Testing connection to <code style="color:var(--accent-cyan); font-size:0.72rem;">${escapeHtml(targetUrl)}</code>...`;
   statusEl.style.color = 'var(--text-muted)';
 
+  const coldTimer = setTimeout(() => {
+    statusEl.innerHTML = `⏳ Connecting to Render (cold start wake-up may take 30–50s)...`;
+    statusEl.style.color = 'var(--accent-amber)';
+  }, 2500);
+
   try {
+    const startTime = performance.now();
     const res = await apiFetch('/health');
+    clearTimeout(coldTimer);
+    const elapsed = Math.round(performance.now() - startTime);
+
     if (res.ok) {
       const data = await res.json();
-      statusEl.textContent = `● Connected (${data.service || 'OK'})`;
+      statusEl.innerHTML = `● Connected (${elapsed}ms) • ${escapeHtml(data.service || 'OK')} • Provider: ${escapeHtml(data.provider || 'openai')}`;
       statusEl.style.color = 'var(--accent-emerald)';
+      if (el('backendStatusBadge')) {
+        el('backendStatusBadge').textContent = `● API Online (${elapsed}ms)`;
+        el('backendStatusBadge').style.color = 'var(--accent-emerald)';
+        el('backendStatusBadge').style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      }
     } else {
-      statusEl.textContent = `✕ Server returned HTTP ${res.status}`;
+      statusEl.innerHTML = `✕ Server returned HTTP ${res.status}`;
       statusEl.style.color = 'var(--accent-rose)';
     }
   } catch (err) {
-    statusEl.textContent = '✕ Cannot connect to backend';
+    clearTimeout(coldTimer);
+    statusEl.innerHTML = `✕ Connection failed. Render may be sleeping. <a href="${escapeHtml(targetUrl)}/health" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:underline;">Open /health</a>`;
     statusEl.style.color = 'var(--accent-rose)';
+    if (el('backendStatusBadge')) {
+      el('backendStatusBadge').textContent = '⚠️ API Disconnected';
+      el('backendStatusBadge').style.color = 'var(--accent-rose)';
+      el('backendStatusBadge').style.borderColor = 'rgba(244, 63, 94, 0.4)';
+    }
   }
 };
 
@@ -2120,9 +2246,18 @@ async function loadServerConfig() {
         el('providerSelect').value = data.provider;
         updateProviderDisplay(data.provider, data.provider === 'gemini' ? data.gemini_model : data.openai_model);
       }
+      if (el('backendStatusBadge')) {
+        el('backendStatusBadge').textContent = '● API Online';
+        el('backendStatusBadge').style.color = 'var(--accent-emerald)';
+        el('backendStatusBadge').style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      }
     }
   } catch (e) {
-    // Silent fallback
+    if (el('backendStatusBadge')) {
+      el('backendStatusBadge').textContent = '⏳ API Connecting (Cold Start)...';
+      el('backendStatusBadge').style.color = 'var(--accent-amber)';
+      el('backendStatusBadge').style.borderColor = 'rgba(245, 158, 11, 0.4)';
+    }
   }
 }
 loadServerConfig();
@@ -2157,6 +2292,12 @@ el('generate').onclick = async () => {
   el('status').className = 'message';
   el('usageBadge').style.display = 'none';
 
+  const coldStartTimer = setTimeout(() => {
+    if (appState.isGenerating) {
+      el('status').innerHTML = `⏳ <strong>Connecting to Render backend...</strong> (If the server was idle, Render free tier takes ~30–50s to wake up from cold start)`;
+    }
+  }, 3500);
+
   try {
     const res = await apiFetch('/api/generate', {
       method: 'POST',
@@ -2167,6 +2308,7 @@ el('generate').onclick = async () => {
         provider: selectedProvider
       })
     });
+    clearTimeout(coldStartTimer);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(typeof data.detail === 'string' ? data.detail : 'Generation failed');
@@ -2214,9 +2356,11 @@ el('generate').onclick = async () => {
       setMobileView('editor');
     }
   } catch (e) {
-    el('status').textContent = e.message;
+    clearTimeout(coldStartTimer);
+    el('status').innerHTML = formatApiError(e, "el('generate').click()");
     el('status').className = 'message error';
   } finally {
+    clearTimeout(coldStartTimer);
     appState.isGenerating = false;
     el('generate').disabled = false;
   }
@@ -2278,6 +2422,12 @@ if (el('modifyBtn')) {
 
     lastEditSnapshot = currentJcl;
 
+    const coldStartTimer = setTimeout(() => {
+      if (el('modifyBtn').disabled) {
+        el('editStatus').innerHTML = `⏳ <strong>Connecting to Render backend...</strong> (Render free tier waking up from cold start, ~30–50s)...`;
+      }
+    }, 3500);
+
     try {
       const res = await apiFetch('/api/jcl/modify', {
         method: 'POST',
@@ -2288,6 +2438,7 @@ if (el('modifyBtn')) {
           provider: selectedProvider
         })
       });
+      clearTimeout(coldStartTimer);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(typeof data.detail === 'string' ? data.detail : 'Modification request failed');
@@ -2306,9 +2457,11 @@ if (el('modifyBtn')) {
         setMobileView('editor');
       }
     } catch (e) {
-      el('editStatus').textContent = e.message;
+      clearTimeout(coldStartTimer);
+      el('editStatus').innerHTML = formatApiError(e, "el('modifyBtn').click()");
       el('editStatus').className = 'message error';
     } finally {
+      clearTimeout(coldStartTimer);
       el('modifyBtn').disabled = false;
     }
   };
@@ -2556,7 +2709,8 @@ async function validateCurrentJcl() {
 
     renderDiagnostics();
   } catch (e) {
-    el('validation').textContent = e.message;
+    const baseUrl = API_CONFIG.getApiBaseUrl() || window.location.origin;
+    el('validation').innerHTML = `⚠️ <strong>Validation offline:</strong> Cannot reach backend at <code style="font-size:0.75rem; color:var(--accent-cyan);">${escapeHtml(baseUrl)}</code> (may be sleeping). <button type="button" class="btn-secondary" style="font-size:0.7rem; padding:1px 6px; margin-left:6px;" onclick="validateCurrentJcl()">Retry</button>`;
     el('validation').className = 'message error';
   } finally {
     appState.isValidating = false;
@@ -2943,12 +3097,19 @@ el('buildManual').onclick = async () => {
   el('builderStatus').textContent = 'Rendering JCL cards...';
   el('builderStatus').className = 'message';
 
+  const coldStartTimer = setTimeout(() => {
+    if (appState.isBuilding) {
+      el('builderStatus').innerHTML = `⏳ <strong>Connecting to Render backend...</strong> (Render free tier waking up, ~30–50s)...`;
+    }
+  }, 3500);
+
   try {
     const res = await apiFetch('/api/build', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req)
     });
+    clearTimeout(coldStartTimer);
     const data = await res.json();
     if (!res.ok) throw new Error('Build failed');
 
@@ -2977,9 +3138,11 @@ el('buildManual').onclick = async () => {
       setMobileView('editor');
     }
   } catch (e) {
-    el('builderStatus').textContent = e.message;
+    clearTimeout(coldStartTimer);
+    el('builderStatus').innerHTML = formatApiError(e, "el('builderGenerateBtn').click()");
     el('builderStatus').className = 'message error';
   } finally {
+    clearTimeout(coldStartTimer);
     appState.isBuilding = false;
   }
 };
@@ -3188,6 +3351,12 @@ if (el('explainErrorBtn')) {
       ? `Analyzing log and querying ${selectedProvider.toUpperCase()} for explanation...`
       : 'Performing deterministic pattern analysis...';
 
+    const coldStartTimer = setTimeout(() => {
+      if (el('explainErrorBtn').disabled) {
+        el('explainerStatus').innerHTML = `⏳ <strong>Connecting to Render backend...</strong> (Render free tier waking up, ~30–50s)...`;
+      }
+    }, 3500);
+
     try {
       const res = await apiFetch('/api/jcl/explain-error', {
         method: 'POST',
@@ -3199,6 +3368,7 @@ if (el('explainErrorBtn')) {
           use_ai: useAi
         })
       });
+      clearTimeout(coldStartTimer);
 
       const data = await res.json();
       if (!res.ok) {
@@ -3220,10 +3390,12 @@ if (el('explainErrorBtn')) {
 
       showToast('Error analysis complete!');
     } catch (err) {
+      clearTimeout(coldStartTimer);
       el('explainerStatus').style.display = 'block';
       el('explainerStatus').className = 'message error';
-      el('explainerStatus').innerHTML = `⚠️ <strong>Analysis Error:</strong> ${escapeHtml(err.message)} <button class="btn-secondary" style="font-size:0.7rem; padding:1px 6px; margin-left:8px;" onclick="el('explainErrorBtn').click()">Retry</button>`;
+      el('explainerStatus').innerHTML = formatApiError(err, "el('explainErrorBtn').click()");
     } finally {
+      clearTimeout(coldStartTimer);
       el('explainErrorBtn').disabled = false;
     }
   };

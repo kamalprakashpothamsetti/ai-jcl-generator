@@ -57,15 +57,17 @@ def test_health_endpoint():
 
 def test_cors_allowed_origins():
     """Verify CORS preflight and headers for configured frontend origins."""
-    headers = {
-        "Origin": "https://pkama.github.io",
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "Content-Type,X-Studio-Access-Key",
-    }
-    res = client.options("/api/validate", headers=headers)
-    assert res.status_code == 200
-    assert res.headers.get("access-control-allow-origin") == "https://pkama.github.io"
-    assert res.headers.get("access-control-allow-credentials") == "true"
+    assert "https://kamalprakashpothamsetti.github.io" in main.allowed_origins
+    for origin in main.allowed_origins:
+        headers = {
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type,X-Studio-Access-Key",
+        }
+        res = client.options("/api/validate", headers=headers)
+        assert res.status_code == 200
+        assert res.headers.get("access-control-allow-origin") == origin
+        assert res.headers.get("access-control-allow-credentials") == "true"
 
 
 def test_cors_unauthorized_origin_rejected():
@@ -93,15 +95,19 @@ def test_frontend_asset_paths_relative():
     # No hardcoded localhost API endpoints in client fetch calls
     assert "http://localhost:8000/api" not in content
     assert "http://127.0.0.1:8000/api" not in content
+    # Helper for friendly error formatting and Render cold starts exists
+    assert "function formatApiError" in content
+    assert "isLocalHost" in content
 
 
 def test_runtime_config_file_exists():
-    """Verify static/config.js exists and defines window.APP_CONFIG."""
+    """Verify static/config.js exists and defines window.APP_CONFIG with the deployed Render backend."""
     config_path = PROJECT_ROOT / "static" / "config.js"
     assert config_path.exists()
     content = config_path.read_text(encoding="utf-8")
     assert "window.APP_CONFIG" in content
     assert "API_BASE_URL" in content
+    assert "https://ai-jcl-generator-api.onrender.com" in content
 
 
 def test_api_config_and_settings_modal_in_html():

@@ -1,7 +1,7 @@
 // JCL Studio AI — Frontend Runtime Configuration
-// When deploying to GitHub Pages, set API_BASE_URL to your Render backend service URL.
-// Example: API_BASE_URL: "https://jcl-studio-ai.onrender.com"
-// Leave empty ("") when hosting frontend & backend together on the same origin.
+// Configured for deployed Render FastAPI backend
+// When running locally on localhost or 127.0.0.1, the frontend automatically
+// falls back to the local origin to preserve local development.
 window.APP_CONFIG = {
-  API_BASE_URL: ""
+  API_BASE_URL: "https://ai-jcl-generator-api.onrender.com"
 };
